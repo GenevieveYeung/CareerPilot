@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobHuntBot Dashboard · 求职进度看板</title>
+<style>
+  :root {
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6; /* blue   - 第一类 */
+    --series-2:       #1baf7a; /* aqua   - 第二类 */
+    --series-3:       #eda100; /* yellow - 第三类 */
+    --series-x:       #898781; /* 未分类 */
+    --status-good:    #0ca30c;
+    --status-warning: #fab219;
+    --status-serious: #ec835a;
+    --status-critical:#d03b3b;
+    --chip-bg:        #f0efec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --series-2:       #199e70;
+      --series-3:       #c98500;
+      --series-x:       #898781;
+      --status-good:    #0ca30c;
+      --status-warning: #fab219;
+      --status-serious: #ec835a;
+      --status-critical:#d03b3b;
+      --chip-bg:        #26262388;
+    }
+  }
+  :root[data-theme="light"] {
+    --surface-1: #fcfcfb; --page-plane: #f9f9f7; --text-primary:#0b0b0b; --text-secondary:#52514e;
+    --text-muted:#898781; --gridline:#e1e0d9; --border:rgba(11,11,11,0.10);
+    --series-1:#2a78d6; --series-2:#1baf7a; --series-3:#eda100; --series-x:#898781; --chip-bg:#f0efec;
+  }
+  :root[data-theme="dark"] {
+    --surface-1:#1a1a19; --page-plane:#0d0d0d; --text-primary:#ffffff; --text-secondary:#c3c2b7;
+    --text-muted:#898781; --gridline:#2c2c2a; --border:rgba(255,255,255,0.10);
+    --series-1:#3987e5; --series-2:#199e70; --series-3:#c98500; --series-x:#898781; --chip-bg:#26262388;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page-plane); color: var(--text-primary);
+    min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 16px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .meta { font-size: 12px; color: var(--text-muted); }
+  .btn {
+    font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary);
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--series-1); }
+  .btn-primary { background: var(--series-1); color: #fff; border-color: var(--series-1); }
+  .btn-row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+  main { max-width: 1080px; margin: 0 auto; padding: 24px 20px 60px; }
+  .hidden { display: none !important; }
+
+  #connect-screen { text-align:center; padding: 80px 20px; }
+  #connect-screen p { color: var(--text-secondary); max-width: 480px; margin: 12px auto 24px; line-height:1.6; }
+  #connect-screen .warn { color: var(--status-serious); font-size: 13px; margin-top:16px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .tile {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+    padding: 24px; cursor: pointer; text-align: left; transition: border-color .15s;
+  }
+  .tile:hover { border-color: var(--series-1); }
+  .tile .label { font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; }
+  .tile .value { font-size: 40px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tile .sub { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  .view-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+  .view-header h2 { margin:0; font-size:20px; }
+  .back-link { font-size:13px; color: var(--series-1); cursor:pointer; background:none; border:none; padding:0; font:inherit; }
+
+  .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .filters select, .filters input[type=text] {
+    font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary);
+  }
+
+  .section-title { font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin: 24px 0 10px; }
+  .section-title:first-child { margin-top: 0; }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 8px; cursor: pointer;
+  }
+  .card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .card-title { font-size:15px; font-weight:600; }
+  .card-sub { font-size: 13px; color: var(--text-secondary); margin-top:2px; }
+  .card-right { text-align:right; font-size:12px; color: var(--text-muted); white-space:nowrap; }
+  .tags { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .chip {
+    display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:3px 8px;
+    border-radius:999px; background: var(--chip-bg); color: var(--text-secondary);
+  }
+  .chip-cat1 { color: var(--series-1); background: color-mix(in srgb, var(--series-1) 14%, transparent); }
+  .chip-cat2 { color: var(--series-2); background: color-mix(in srgb, var(--series-2) 14%, transparent); }
+  .chip-cat3 { color: var(--series-3); background: color-mix(in srgb, var(--series-3) 16%, transparent); }
+  .chip-good { color: var(--status-good); background: color-mix(in srgb, var(--status-good) 14%, transparent); }
+  .chip-critical { color: var(--status-critical); background: color-mix(in srgb, var(--status-critical) 14%, transparent); }
+  .chip-warning { color: var(--status-warning); background: color-mix(in srgb, var(--status-warning) 18%, transparent); }
+  .chip-agent { color: var(--series-1); }
+  .chip-user { color: var(--text-muted); }
+
+  .detail { margin-top:10px; padding-top:10px; border-top: 1px solid var(--gridline); font-size:13px; color: var(--text-secondary); line-height:1.6; display:none; }
+  .card.open .detail { display:block; }
+  .detail dt { color: var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:.03em; margin-top:8px; }
+  .detail dt:first-child { margin-top:0; }
+  .detail dd { margin:2px 0 0; }
+  .detail a { color: var(--series-1); }
+
+  .empty { color: var(--text-muted); font-size:14px; padding: 24px 0; text-align:center; }
+  .timeline-item { padding: 4px 0; border-bottom: 1px dashed var(--gridline); }
+  .timeline-item:last-child { border-bottom:none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>JobHuntBot Dashboard · 求职进度看板</h1>
+  <div class="btn-row">
+    <span class="meta" id="last-updated"></span>
+    <button class="btn" id="theme-toggle">🌓</button>
+    <button class="btn hidden" id="refresh-btn">刷新</button>
+  </div>
+</header>
+
+<main>
+
+  <div id="connect-screen">
+    <h2 id="connect-title">正在读取数据…</h2>
+    <p id="connect-desc">从同目录下的 job_pool.csv 等文件读取最新数据。</p>
+    <p class="warn" id="connect-warn"></p>
+  </div>
+
+  <div id="app" class="hidden">
+
+    <div id="home-view">
+      <div class="tiles">
+        <button class="tile" data-view="applied">
+          <div class="label">已投递</div>
+          <div class="value" id="tile-applied">–</div>
+          <div class="sub">进行中的投递</div>
+        </button>
+        <button class="tile" data-view="pending">
+          <div class="label">未投递</div>
+          <div class="value" id="tile-pending">–</div>
+          <div class="sub">目标池里还没投的公司</div>
+        </button>
+        <button class="tile" data-view="ended">
+          <div class="label">已结束</div>
+          <div class="value" id="tile-ended">–</div>
+          <div class="sub">拿到 offer 或已被拒</div>
+        </button>
+      </div>
+    </div>
+
+    <div id="applied-view" class="hidden">
+      <div class="view-header">
+        <div><button class="back-link" data-back>← 返回</button><h2>已投递</h2></div>
+        <div class="filters">
+          <select id="applied-filter-cat"><option value="">全部分类</option></select>
+          <input type="text" id="applied-search" placeholder="搜索公司…">
+        </div>
+      </div>
+      <div id="applied-list"></div>
+    </div>
+
+    <div id="pending-view" class="hidden">
+      <div class="view-header">
+        <div><button class="back-link" data-back>← 返回</button><h2>未投递</h2></div>
+        <div class="filters">
+          <select id="pending-filter-cat"><option value="">全部分类</option></select>
+          <select id="pending-filter-priority"><option value="">全部优先级</option></select>
+          <select id="pending-filter-city"><option value="">全部城市</option></select>
+          <input type="text" id="pending-search" placeholder="搜索公司…">
+        </div>
+      </div>
+      <div class="section-title" id="pending-open-title">已确认开放，还没投</div>
+      <div id="pending-open-list"></div>
+      <div class="section-title" id="pending-notopen-title">未开 / 状态不明</div>
+      <div id="pending-notopen-list"></div>
+    </div>
+
+    <div id="ended-view" class="hidden">
+      <div class="view-header">
+        <div><button class="back-link" data-back>← 返回</button><h2>已结束</h2></div>
+        <div class="filters">
+          <input type="text" id="ended-search" placeholder="搜索公司…">
+        </div>
+      </div>
+      <div id="ended-list"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+(function(){
+
+  // ---------- theme ----------
+  const root = document.documentElement;
+  function applyTheme(t) {
+    if (t) root.setAttribute('data-theme', t);
+    else root.removeAttribute('data-theme');
+  }
+  applyTheme(localStorage.getItem('dash-theme'));
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const cur = root.getAttribute('data-theme') ||
+      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('dash-theme', next);
+    applyTheme(next);
+  });
+
+  // ---------- csv parsing ----------
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], field = '', inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i], next = text[i+1];
+      if (inQuotes) {
+        if (c === '"' && next === '"') { field += '"'; i++; }
+        else if (c === '"') { inQuotes = false; }
+        else { field += c; }
+      } else {
+        if (c === '"') { inQuotes = true; }
+        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === '\r') { /* skip */ }
+        else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+        else { field += c; }
+      }
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+    while (rows.length && rows[rows.length-1].length === 1 && rows[rows.length-1][0] === '') rows.pop();
+    if (!rows.length) return [];
+    const header = rows.shift();
+    return rows.filter(r => !(r.length === 1 && r[0] === '')).map(r => {
+      const obj = {};
+      header.forEach((h, idx) => obj[h] = r[idx] !== undefined ? r[idx] : '');
+      return obj;
+    });
+  }
+
+  // ---------- data ----------
+  const data = { jobPool: [], appLog: [], followUp: [] };
+
+  async function readCSVFile(name) {
+    const res = await fetch('./' + name + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error(name + ' 读取失败 (HTTP ' + res.status + ')');
+    return parseCSV(await res.text());
+  }
+
+  async function loadAll() {
+    const warnEl = document.getElementById('connect-warn');
+    try {
+      data.jobPool = await readCSVFile('job_pool.csv');
+      data.appLog = await readCSVFile('application_log.csv').catch(() => []);
+      data.followUp = await readCSVFile('follow_up.csv').catch(() => []);
+    } catch (e) {
+      document.getElementById('connect-title').textContent = '读取数据失败';
+      document.getElementById('connect-desc').textContent = '';
+      warnEl.textContent = e.message + '——请确认是通过本地服务器打开的（双击"启动仪表盘.bat"），而不是直接双击 dashboard.html。';
+      return;
+    }
+    document.getElementById('last-updated').textContent =
+      '最后读取：' + new Date().toLocaleString('zh-CN', {hour12:false});
+    document.getElementById('connect-screen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('refresh-btn').classList.remove('hidden');
+    renderHome();
+    renderApplied();
+    renderPending();
+    renderEnded();
+  }
+
+  // ---------- categorization helpers ----------
+  function category(row) {
+    const m = (row.notes || '').match(/分类[:：]\s*(第[一二三]类)/);
+    return m ? m[1] : '未分类';
+  }
+  function catChipClass(cat) {
+    if (cat === '第一类') return 'chip-cat1';
+    if (cat === '第二类') return 'chip-cat2';
+    if (cat === '第三类') return 'chip-cat3';
+    return '';
+  }
+  // "已确认开放" used to be guessed from free-text notes/next_action with
+  // keyword + negation regex. That heuristic rots into false positives once
+  // notes get longer and more nuanced (e.g. a phrase containing both "开放"
+  // and "未开" in the same sentence), and worse, it looks "stable" even when
+  // wrong because the guess doesn't change when the real-world fact does.
+  // Read the structured job_pool.csv column `cohort_match_status`
+  // (Yes/Unclear/No) instead — this column is explicitly set by the agent or
+  // the user after each recheck, so it only changes when the underlying fact
+  // actually changes.
+  function isCycleOpen(row) {
+    return row.cohort_match_status === 'Yes';
+  }
+  function esc(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function escMultiline(s) {
+    return esc(s).replace(/\n/g, '<br>');
+  }
+  function jdFor(company) {
+    const logs = logsFor(company);
+    if (!logs.length) return '';
+    const l = logs[logs.length-1];
+    return (l.job_description || '').trim();
+  }
+  function followUpsFor(company) {
+    return data.followUp
+      .filter(f => f.company === company)
+      .sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  }
+  function logsFor(company) {
+    return data.appLog.filter(a => a.company === company);
+  }
+  // 投递日期的真实来源是 application_log.csv 的 attempt_date（实际点击提交那天），
+  // 不是 job_pool.csv 的 date_found（发现/加入职位池那天）——两者常常不是同一天
+  // （比如先加入池子，几天后卡点/等用户处理完才真正点提交）。取该公司最新一条
+  // 投递记录的 attempt_date；只有在完全没有日志时才退回 date_found 兜底。
+  function submittedDateFor(r) {
+    const logs = logsFor(r.company);
+    if (logs.length) return logs[logs.length - 1].attempt_date || r.date_found;
+    return r.date_found;
+  }
+  function submissionMode(company) {
+    const logs = logsFor(company);
+    if (!logs.length) return { label: '记录方式未知', cls: '' };
+    const l = logs[logs.length-1];
+    const blob = (l.submission_evidence||'') + (l.notes||'');
+    if (blob.indexOf('用户自行') !== -1) return { label: '用户自行投递（未经工具核实）', cls: 'chip-user' };
+    return { label: 'Claude 浏览器操作（有截图/URL证据）', cls: 'chip-agent' };
+  }
+  function currentStage(company) {
+    const fu = followUpsFor(company);
+    if (!fu.length) return '已投递，等待中';
+    const last = fu[fu.length-1];
+    return (last.event_type ? last.event_type + '：' : '') + (last.next_action || last.status || '进行中');
+  }
+
+  // ---------- home tiles ----------
+  function renderHome() {
+    const applied = data.jobPool.filter(r => r.status === 'Submitted');
+    const ended = data.jobPool.filter(r => r.status === 'Offer' || r.status === 'Rejected');
+    const pending = data.jobPool.filter(r => r.status === 'Pending' || r.status === 'Needs user');
+    document.getElementById('tile-applied').textContent = applied.length;
+    document.getElementById('tile-pending').textContent = pending.length;
+    document.getElementById('tile-ended').textContent = ended.length;
+  }
+
+  // ---------- card builder ----------
+  function cardEl(html) {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = html;
+    div.addEventListener('click', (e) => {
+      if (e.target.tagName === 'A') return;
+      div.classList.toggle('open');
+    });
+    return div;
+  }
+
+  // ---------- applied view ----------
+  function renderApplied() {
+    const listEl = document.getElementById('applied-list');
+    const catSel = document.getElementById('applied-filter-cat');
+    const search = document.getElementById('applied-search');
+
+    let rows = data.jobPool.filter(r => r.status === 'Submitted');
+
+    // populate category filter once
+    if (catSel.options.length <= 1) {
+      const cats = [...new Set(rows.map(category))].sort();
+      cats.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; catSel.appendChild(o); });
+    }
+
+    function draw() {
+      let filtered = rows.slice();
+      if (catSel.value) filtered = filtered.filter(r => category(r) === catSel.value);
+      if (search.value.trim()) {
+        const q = search.value.trim().toLowerCase();
+        filtered = filtered.filter(r => (r.company||'').toLowerCase().includes(q));
+      }
+      filtered.sort((a,b) => (submittedDateFor(b)||'').localeCompare(submittedDateFor(a)||''));
+
+      listEl.innerHTML = '';
+      if (!filtered.length) { listEl.innerHTML = '<div class="empty">没有匹配的记录</div>'; return; }
+
+      filtered.forEach(r => {
+        const cat = category(r);
+        const mode = submissionMode(r.company);
+        const stage = currentStage(r.company);
+        const fu = followUpsFor(r.company);
+        const timeline = fu.map(f => `<div class="timeline-item">${esc(f.date)} — ${esc(f.event_type)}：${esc(f.status)} ${esc(f.next_action)}</div>`).join('') || '<div class="timeline-item">暂无跟进记录</div>';
+        const jd = jdFor(r.company);
+
+        const html = `
+          <div class="card-top">
+            <div>
+              <div class="card-title">${esc(r.company)} · ${esc(r.job_title)}</div>
+              <div class="card-sub">${esc(stage)}</div>
+              <div class="tags">
+                <span class="chip ${catChipClass(cat)}">${esc(cat)}</span>
+                <span class="chip ${mode.cls}">${esc(mode.label)}</span>
+              </div>
+            </div>
+            <div class="card-right">投递于 ${esc(submittedDateFor(r))}</div>
+          </div>
+          <div class="detail">
+            <dt>职位/城市</dt><dd>${esc(r.job_title)} · ${esc(r.location)}</dd>
+            <dt>岗位描述（JD）</dt><dd>${jd ? escMultiline(jd) : '暂未记录，可在 application_log.csv 的 job_description 列补充'}</dd>
+            <dt>备注</dt><dd>${esc(r.notes)}</dd>
+            <dt>next_action</dt><dd>${esc(r.next_action)}</dd>
+            ${r.job_url ? `<dt>链接</dt><dd><a href="${esc(r.job_url)}" target="_blank" rel="noopener">${esc(r.job_url)}</a></dd>` : ''}
+            <dt>跟进时间线</dt><dd>${timeline}</dd>
+          </div>`;
+        listEl.appendChild(cardEl(html));
+      });
+    }
+    catSel.onchange = draw;
+    search.oninput = draw;
+    draw();
+  }
+
+  // ---------- pending view ----------
+  function renderPending() {
+    const openEl = document.getElementById('pending-open-list');
+    const notOpenEl = document.getElementById('pending-notopen-list');
+    const catSel = document.getElementById('pending-filter-cat');
+    const prioSel = document.getElementById('pending-filter-priority');
+    const citySel = document.getElementById('pending-filter-city');
+    const search = document.getElementById('pending-search');
+
+    let rows = data.jobPool.filter(r => r.status === 'Pending' || r.status === 'Needs user');
+
+    if (catSel.options.length <= 1) {
+      [...new Set(rows.map(category))].sort().forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
+    }
+    if (prioSel.options.length <= 1) {
+      [...new Set(rows.map(r => r.priority).filter(Boolean))].sort().forEach(p => { const o=document.createElement('option'); o.value=p; o.textContent=p; prioSel.appendChild(o); });
+    }
+    if (citySel.options.length <= 1) {
+      [...new Set(rows.map(r => r.location).filter(Boolean))].sort().forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; citySel.appendChild(o); });
+    }
+
+    function rowCard(r) {
+      const cat = category(r);
+      const summary = (r.next_action || '').split(/[；;]/)[0];
+      const unclearChip = r.cohort_match_status === 'Unclear' ? '<span class="chip chip-warning">状态不明确，需人工复核</span>' : '';
+      const html = `
+        <div class="card-top">
+          <div>
+            <div class="card-title">${esc(r.company)}</div>
+            <div class="card-sub">${esc(r.job_title)} · ${esc(r.location)}</div>
+            <div class="tags">
+              <span class="chip ${catChipClass(cat)}">${esc(cat)}</span>
+              <span class="chip">优先级 ${esc(r.priority)}</span>
+              ${unclearChip}
+            </div>
+          </div>
+          <div class="card-right">${esc(summary)}</div>
+        </div>
+        <div class="detail">
+          <dt>next_action</dt><dd>${esc(r.next_action)}</dd>
+          <dt>备注</dt><dd>${esc(r.notes)}</dd>
+          ${r.job_url ? `<dt>链接</dt><dd><a href="${esc(r.job_url)}" target="_blank" rel="noopener">${esc(r.job_url)}</a></dd>` : ''}
+        </div>`;
+      return cardEl(html);
+    }
+
+    function draw() {
+      let filtered = rows.slice();
+      if (catSel.value) filtered = filtered.filter(r => category(r) === catSel.value);
+      if (prioSel.value) filtered = filtered.filter(r => r.priority === prioSel.value);
+      if (citySel.value) filtered = filtered.filter(r => r.location === citySel.value);
+      if (search.value.trim()) {
+        const q = search.value.trim().toLowerCase();
+        filtered = filtered.filter(r => (r.company||'').toLowerCase().includes(q));
+      }
+      const openRows = filtered.filter(isCycleOpen);
+      const notOpenRows = filtered.filter(r => !isCycleOpen(r));
+
+      document.getElementById('pending-open-title').textContent = `已确认开放，还没投（${openRows.length}）`;
+      document.getElementById('pending-notopen-title').textContent = `未开 / 状态不明（${notOpenRows.length}）`;
+
+      openEl.innerHTML = '';
+      notOpenEl.innerHTML = '';
+      openEl.innerHTML = openRows.length ? '' : '<div class="empty">没有匹配的记录</div>';
+      notOpenEl.innerHTML = notOpenRows.length ? '' : '<div class="empty">没有匹配的记录</div>';
+      openRows.forEach(r => openEl.appendChild(rowCard(r)));
+      notOpenRows.forEach(r => notOpenEl.appendChild(rowCard(r)));
+    }
+    catSel.onchange = draw; prioSel.onchange = draw; citySel.onchange = draw; search.oninput = draw;
+    draw();
+  }
+
+  // ---------- ended view ----------
+  function renderEnded() {
+    const listEl = document.getElementById('ended-list');
+    const search = document.getElementById('ended-search');
+    let rows = data.jobPool.filter(r => r.status === 'Offer' || r.status === 'Rejected');
+
+    function draw() {
+      let filtered = rows.slice();
+      if (search.value.trim()) {
+        const q = search.value.trim().toLowerCase();
+        filtered = filtered.filter(r => (r.company||'').toLowerCase().includes(q));
+      }
+      filtered.sort((a,b) => (a.status === 'Offer' ? -1 : 1) - (b.status === 'Offer' ? -1 : 1));
+
+      listEl.innerHTML = '';
+      if (!filtered.length) { listEl.innerHTML = '<div class="empty">暂无已结束的投递</div>'; return; }
+      filtered.forEach(r => {
+        const cat = category(r);
+        const resultChip = r.status === 'Offer'
+          ? '<span class="chip chip-good">🟢 Offer</span>'
+          : '<span class="chip chip-critical">已挂</span>';
+        const jd = jdFor(r.company);
+        const html = `
+          <div class="card-top">
+            <div>
+              <div class="card-title">${esc(r.company)} · ${esc(r.job_title)}</div>
+              <div class="tags">
+                <span class="chip ${catChipClass(cat)}">${esc(cat)}</span>
+                ${resultChip}
+              </div>
+            </div>
+            <div class="card-right">${esc(submittedDateFor(r))}</div>
+          </div>
+          <div class="detail">
+            <dt>岗位描述（JD）</dt><dd>${jd ? escMultiline(jd) : '暂未记录'}</dd>
+            <dt>备注</dt><dd>${esc(r.notes)}</dd>
+          </div>`;
+        listEl.appendChild(cardEl(html));
+      });
+    }
+    search.oninput = draw;
+    draw();
+  }
+
+  // ---------- navigation ----------
+  function showView(name) {
+    ['home','applied','pending','ended'].forEach(v => {
+      document.getElementById(v + '-view').classList.toggle('hidden', v !== name);
+    });
+  }
+  document.querySelectorAll('.tile').forEach(t => t.addEventListener('click', () => showView(t.dataset.view)));
+  document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => showView('home')));
+
+  // ---------- load / refresh ----------
+  const refreshBtn = document.getElementById('refresh-btn');
+  // 整页重新加载而不是只调 loadAll()：如果 dashboard.html 本身的代码被改过
+  // （比如这次修的投递日期字段来源），只刷新 CSV 数据看不到效果，必须连页面
+  // 的 JS 一起重新拉取，否则浏览器里跑的还是改之前缓存在内存里的旧逻辑。
+  refreshBtn.addEventListener('click', () => location.reload());
+
+  loadAll();
+
+})();
+</script>
+
+</body>
+</html>
