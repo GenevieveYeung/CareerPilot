@@ -30,28 +30,44 @@ dashboard/                       A ready-to-run local dashboard (same CSV schema
 ## Quick Start
 
 1. **Download or clone this repo** to your machine (or point your coding agent at the GitHub URL).
-2. **Start a session with your AI coding agent** (Claude Code, Codex CLI, or any agent that can read local files) in this folder and say:
+
+2. **Give the agent browser access — required for actually filling out applications.** Research/lead-finding (step 4 below) only needs web search, but step 6 in `SKILL.md` (filling out real forms, uploading a resume, clicking submit) needs the agent to control a real browser. Set this up once, before you ask it to apply to anything:
+   - **Claude Code**: add the Playwright MCP server so the agent gets browser tools (navigate, click, type, fill forms, upload files, take snapshots):
+     ```bash
+     claude mcp add playwright npx '@playwright/mcp@latest'
+     ```
+     Restart/reopen your Claude Code session afterward so it picks up the new tools.
+   - **Codex CLI or another agent**: check whether it has an equivalent browser-automation or computer-use capability (a Playwright-based MCP server, a built-in browser tool, etc.) and enable it the way that agent documents. Without it, the agent can still do everything up through lead-finding and drafting — it just can't open a real application page and submit it for you.
+   - You can skip this entirely if you only want the lead-finding/dashboard-tracking half of the workflow and plan to submit applications yourself.
+
+3. **Put your source materials where the agent can read them.** Before onboarding, drop your resume (ideally an editable DOCX/Markdown source, not just a PDF — see `references/setup-workflow.md` for why), transcript, and any project write-ups you want it to draw on into a folder in this repo, e.g. `my-materials/`. That folder name is already listed in `.gitignore`, so if you're keeping this repo on GitHub your personal files won't get committed by accident. Then just tell the agent where to look:
+
+   ```text
+   My resume, transcript, and project notes are in my-materials/. Read them before we start.
+   ```
+
+4. **Start a session with your AI coding agent** (Claude Code, Codex CLI, or any agent that can read local files) in this folder and say:
 
    ```text
    Use SKILL.md to initialize my job search workflow.
    ```
 
-   The agent will ask you a small set of minimum-viable questions (identity basics, target roles, work authorization, resume strategy — Volume vs. Precision) and fill in the files under `templates/` for you. It will not guess anything sensitive; it asks when a fact matters and it's missing.
+   The agent will ask you a small set of minimum-viable questions (identity basics, target roles, work authorization, resume strategy — Volume vs. Precision) and fill in the files under `templates/` for you, using whatever it already read from your materials folder plus your answers. It will not guess anything sensitive; it asks when a fact matters and it's missing.
 
-3. **Run a safe first trial.** Tell the agent explicitly:
+5. **Run a safe first trial.** Tell the agent explicitly:
 
    ```text
    Do a lead-finding-only trial: find 3-5 jobs, classify them, update the dashboard, and don't open application flows or submit anything.
    ```
 
-   This is the recommended way to see the workflow work before it touches any real application form.
+   This step only needs web search, not the browser automation from step 2 — it's the recommended way to see the workflow work before it touches any real application form.
 
-4. **Open the dashboard** to see progress:
+6. **Open the dashboard** to see progress:
    - Windows: double-click `dashboard/start-dashboard.bat`
    - macOS/Linux: run `dashboard/start-dashboard.sh` (requires [Node.js](https://nodejs.org/) installed; `chmod +x` it once if needed)
    - This opens `http://localhost:8420/dashboard.html` in your browser. It reads the CSVs in the same folder live — every refresh shows the latest state, no build step, no external server, nothing leaves your machine.
 
-5. **Keep applying with the agent's help**, one company at a time. It updates `job_pool.csv`, `application_log.csv`, `blocker_queue.csv`, and `follow_up.csv` as it goes, and always pauses for your explicit confirmation before a final submit.
+7. **Keep applying with the agent's help**, one company at a time — this is where the browser automation from step 2 actually gets used. It updates `job_pool.csv`, `application_log.csv`, `blocker_queue.csv`, and `follow_up.csv` as it goes, and always pauses for your explicit confirmation before a final submit.
 
 ## The Dashboard
 
@@ -115,28 +131,44 @@ dashboard/                       开箱即用的本地进度看板(CSV结构与�
 ### 快速开始
 
 1. **下载或克隆本仓库**到本地(或者直接把 GitHub 地址发给你的编程 Agent)。
-2. **在这个文件夹里跟你的 AI 编程助手**(Claude Code、Codex CLI,或任何能读取本地文件的 Agent)开一个新会话,说:
+
+2. **给 Agent 配上操作浏览器的能力——真正投递表单时必须要有。** 下面第4步的"仅找岗位"调研只需要网页搜索,但 `SKILL.md` 第6步(填真实表单、上传简历、点提交)需要 Agent 能真正操作浏览器。建议在真正开始投递前先配好:
+   - **Claude Code**:装上 Playwright MCP,让 Agent 拿到浏览器操作工具(打开页面、点击、输入、填表单、上传文件、截图等):
+     ```bash
+     claude mcp add playwright npx '@playwright/mcp@latest'
+     ```
+     装完之后重新开一个 Claude Code 会话,让它加载上新工具。
+   - **Codex CLI 或其他 Agent**:去查一下它有没有对应的浏览器自动化/computer-use 能力(比如基于 Playwright 的 MCP、内置的浏览器工具等),按它自己的文档启用。没配这个也不影响"仅找岗位"调研和草拟材料这部分,只是没法真的帮你打开表单页面并点提交。
+   - 如果你只想用"找岗位+看板追踪"这一半功能,自己手动投递,这一步可以完全跳过。
+
+3. **把你的原始材料放到 Agent 能读到的地方。** 正式开始初始化之前,把你的简历(最好是可编辑的 DOCX/Markdown 源文件,不要只有 PDF——原因见 `references/setup-workflow.md`)、成绩单、以及想让它参考的项目经历文档,放进本仓库里的一个文件夹,比如 `my-materials/`。这个文件夹名已经写进了 `.gitignore`,如果这个仓库放在 GitHub 上,个人材料不会被误提交上去。然后直接告诉 Agent 去哪找:
+
+   ```text
+   我的简历、成绩单和项目经历都在 my-materials/ 里,开始之前先读一下。
+   ```
+
+4. **在这个文件夹里跟你的 AI 编程助手**(Claude Code、Codex CLI,或任何能读取本地文件的 Agent)开一个新会话,说:
 
    ```text
    使用 SKILL.md 帮我初始化求职工作流。
    ```
 
-   Agent 会问你一小组最低限度的必要问题(基本身份信息、目标岗位、工作资格、简历策略——海投 Volume 还是精投 Precision),然后帮你把 `templates/` 下的文件填好。它不会猜测任何敏感信息,遇到关键信息缺失时会主动问你。
+   Agent 会问你一小组最低限度的必要问题(基本身份信息、目标岗位、工作资格、简历策略——海投 Volume 还是精投 Precision),结合它从材料文件夹里读到的内容和你的回答,帮你把 `templates/` 下的文件填好。它不会猜测任何敏感信息,遇到关键信息缺失时会主动问你。
 
-3. **先做一次安全的试运行**,明确告诉 Agent:
+5. **先做一次安全的试运行**,明确告诉 Agent:
 
    ```text
    先做一次"仅找岗位"的试运行:找3-5个岗位、分类、更新看板,不要打开投递流程也不要提交任何申请。
    ```
 
-   建议先用这种方式看工作流跑起来是什么样子,再让它真正接触投递表单。
+   这一步只需要网页搜索,不需要第2步配的浏览器自动化——建议先用这种方式看工作流跑起来是什么样子,再让它真正接触投递表单。
 
-4. **打开进度看板**查看情况:
+6. **打开进度看板**查看情况:
    - Windows:双击 `dashboard/start-dashboard.bat`
    - macOS/Linux:运行 `dashboard/start-dashboard.sh`(需要先安装 [Node.js](https://nodejs.org/);如有需要先执行一次 `chmod +x`)
    - 会在浏览器打开 `http://localhost:8420/dashboard.html`,实时读取同目录下的 CSV——每次刷新都是最新状态,不需要构建、不需要外部服务器,数据也不会离开你的电脑。
 
-5. **在 Agent 的帮助下继续投递**,一次处理一家公司。它会持续更新 `job_pool.csv`、`application_log.csv`、`blocker_queue.csv`、`follow_up.csv`,并且在每次真正点击提交前,一定会停下来等你明确确认。
+7. **在 Agent 的帮助下继续投递**,一次处理一家公司——这一步才会真正用到第2步配的浏览器自动化。它会持续更新 `job_pool.csv`、`application_log.csv`、`blocker_queue.csv`、`follow_up.csv`,并且在每次真正点击提交前,一定会停下来等你明确确认。
 
 ### 关于看板
 
