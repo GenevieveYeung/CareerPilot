@@ -135,6 +135,12 @@
   .empty { color: var(--text-muted); font-size:14px; padding: 24px 0; text-align:center; }
   .timeline-item { padding: 4px 0; border-bottom: 1px dashed var(--gridline); }
   .timeline-item:last-child { border-bottom:none; }
+
+  .end-progress { margin-top:12px; padding-top:12px; border-top: 1px dashed var(--gridline); }
+  .end-choices { display:flex; gap:8px; margin-top:8px; }
+  .btn-good { color: var(--status-good); border-color: var(--status-good); }
+  .btn-bad { color: var(--status-critical); border-color: var(--status-critical); }
+  .btn:disabled { opacity: .5; cursor: default; }
 </style>
 </head>
 <body>
@@ -279,6 +285,9 @@
     const warnEl = document.getElementById('connect-warn');
     try {
       data.jobPool = await readCSVFile('job_pool.csv');
+      // Row position in job_pool.csv (excluding header) — this is how the
+      // "mark as ended" action tells the server which row to update.
+      data.jobPool.forEach((r, i) => { r.__rowIndex = i; });
       data.appLog = await readCSVFile('application_log.csv').catch(() => []);
       data.followUp = await readCSVFile('follow_up.csv').catch(() => []);
     } catch (e) {
@@ -387,6 +396,24 @@
     return div;
   }
 
+  // ---------- mark ended ----------
+  async function markEnded(r, status, btn) {
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowIndex: r.__rowIndex, company: r.company, job_title: r.job_title, status }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || !result.ok) throw new Error(result.error || ('HTTP ' + res.status));
+      location.reload(); // same full-reload pattern as the refresh button, so home tiles / applied / ended all recompute together
+    } catch (e) {
+      alert('更新失败：' + e.message);
+      btn.disabled = false;
+    }
+  }
+
   // ---------- applied view ----------
   function renderApplied() {
     const listEl = document.getElementById('applied-list');
@@ -440,8 +467,28 @@
             <dt>next_action</dt><dd>${esc(r.next_action)}</dd>
             ${r.job_url ? `<dt>链接</dt><dd><a href="${esc(r.job_url)}" target="_blank" rel="noopener">${esc(r.job_url)}</a></dd>` : ''}
             <dt>跟进时间线</dt><dd>${timeline}</dd>
+            <div class="end-progress">
+              <button class="btn end-trigger">进度已结束</button>
+              <div class="end-choices hidden">
+                <button class="btn btn-good end-choice" data-status="Offer">已通过</button>
+                <button class="btn btn-bad end-choice" data-status="Rejected">已被挂</button>
+              </div>
+            </div>
           </div>`;
-        listEl.appendChild(cardEl(html));
+        const card = cardEl(html);
+        const endTrigger = card.querySelector('.end-trigger');
+        const endChoices = card.querySelector('.end-choices');
+        endTrigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          endChoices.classList.toggle('hidden');
+        });
+        card.querySelectorAll('.end-choice').forEach(choiceBtn => {
+          choiceBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            markEnded(r, choiceBtn.dataset.status, choiceBtn);
+          });
+        });
+        listEl.appendChild(card);
       });
     }
     catSel.onchange = draw;
