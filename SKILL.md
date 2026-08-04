@@ -39,6 +39,7 @@ Use the templates in `templates/` to create user-owned files:
 - `application_rules.template.md`
 - `resume_routing.template.md`
 - `answer_bank.template.md`
+- `experience_bank.template.md`
 - `dashboard-template/*.csv`
 
 ### 2. Confirm the Company and Research the Opening
@@ -63,7 +64,18 @@ Once a company's opening is confirmed, don't jump straight to filling out a form
 
 If a company limits applicants to one or two total submissions in the cycle, say so before the user picks — it changes the decision. Let the user pick which posting to pursue; only proceed on your own initiative if the user has already named the exact posting.
 
-### 5. Route the Resume Strategy
+### 5. Match Experience to the Role
+
+Before touching the application, decide which of the candidate's experiences to actually feature for this specific posting — this is a separate decision from which resume file to use.
+
+- Check `experience_bank.md` (created from `templates/experience_bank.template.md` during setup) for the target role family's candidate pool — it deliberately keeps a wide, overlapping pool per role family (aim for 3-5 internships + 3+ projects rated `强`/`中`, fewer only where the candidate's real background is genuinely thin in that direction) rather than one narrow "owned" set, since closely related role families usually share supporting evidence.
+- Read this posting's actual JD and pick 2-4 experiences from that candidate pool that best fit it — favor `强` matches, but a `中` match that happens to hit something the JD specifically calls out can outrank a `强` match that doesn't. If the JD emphasizes something the whole pool underrepresents, pull in a different experience from the full inventory instead of forcing a weak fit.
+- **Before using them, tell the user which experiences (internships and projects) were selected for this application and why.** Keep it short (a list of names + one-line reasoning), but always surface it as a checkpoint — don't silently pick and move on.
+- Use the selected 2-4 experiences — not the full inventory — when answering resume-adjacent free-text fields: "relevant experience/project" custom questions, self-evaluation/cover-letter fields (synthesize personality + the selected experiences + this specific company/role fit; don't dump a generic bio), and Precision-mode resume bullet emphasis.
+- After submitting, note which experiences were actually used in `application_log`'s notes — this lets a later application to a similar role or company reuse the same reasoning instead of re-deriving it.
+- Same truthfulness rule as everywhere else: reorder, select, and emphasize freely; never invent, exaggerate, or stretch an experience to make it look like a better fit than it is. If nothing in the bank fits well, say so and use the closest honest match.
+
+### 6. Route the Resume Strategy
 
 Use the user's chosen strategy:
 
@@ -74,19 +86,19 @@ Default to Volume mode unless the user explicitly asks for Precision. Individual
 
 Never fabricate experience, credentials, degrees, employers, dates, work authorization, or portfolio artifacts.
 
-### 6. Fill Out the Application
+### 7. Fill Out the Application
 
 Read `references/application-playbook.md` before operating browser-based applications, LinkedIn Easy Apply, Simplify, Greenhouse, Lever, Ashby, Workday, or other ATS flows.
 
-Prefer uploading the resume first and letting the ATS auto-parse it — it's less error-prone than hand-typing education/experience. Fill whatever you confidently can from `candidate_profile.json`, `resume_routing.md`, and `answer_bank.md`. Stop and ask the user (don't guess) for anything on the `never_guess` list, anything requiring a subjective call, or anything the form surfaces that isn't backed by the résumé or profile (auto-filled bio text from a saved account, for instance) — verify it's true before letting it ride into a real submission.
+Prefer uploading the resume first and letting the ATS auto-parse it — it's less error-prone than hand-typing education/experience. Fill whatever you confidently can from `candidate_profile.json`, `resume_routing.md`, `experience_bank.md` (for relevant-experience/self-evaluation fields, using the combo picked in step 5), and `answer_bank.md`. Stop and ask the user (don't guess) for anything on the `never_guess` list, anything requiring a subjective call, or anything the form surfaces that isn't backed by the résumé or profile (auto-filled bio text from a saved account, for instance) — verify it's true before letting it ride into a real submission.
 
 Stop or hand off for CAPTCHA, Cloudflare, anti-bot checks, login or 2FA, unclear legal/identity questions, missing files, payment prompts, permission prompts, or anything that would require bypassing a site control.
 
-### 7. Preview, User Confirms, Submit
+### 8. Preview, User Confirms, Submit
 
-Before the final submit click, show the user a summary (company, role, resume version, key answers, compensation figures). **Do not click final submit until the user explicitly says to** — a preview screen is not consent. After submitting, look for real confirmation evidence (success text, a thank-you/confirmation URL, a candidate ID) before recording anything as `Submitted`.
+Before the final submit click, show the user a summary (company, role, resume version, the internship/project experiences selected in step 5, key answers, compensation figures). **Do not click final submit until the user explicitly says to** — a preview screen is not consent. After submitting, look for real confirmation evidence (success text, a thank-you/confirmation URL, a candidate ID) before recording anything as `Submitted`.
 
-### 8. Sync Everything — Dashboard and Profile
+### 9. Sync Everything — Dashboard and Profile
 
 Every job lead or attempt must end in one of these states:
 
@@ -104,7 +116,7 @@ For a real submission, update the same dashboard files (`job_pool` status, `appl
 
 When recording a submission in `application_log`, also capture the full job description text (responsibilities and requirements) from the official posting into the `job_description` field, copied verbatim from the source — not summarized or paraphrased. This is what makes later interview prep possible without having to re-find a posting that may since have been taken down.
 
-### 9. Learn From Blockers
+### 10. Learn From Blockers
 
 After each run, summarize blockers and convert repeated issues into rules. JobHuntBot should improve through use: address matching, dropdown handling, resume upload checks, account/session checks, and ATS-specific lessons belong in the dashboard and rules.
 
