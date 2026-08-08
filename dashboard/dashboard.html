@@ -141,6 +141,29 @@
   .btn-good { color: var(--status-good); border-color: var(--status-good); }
   .btn-bad { color: var(--status-critical); border-color: var(--status-critical); }
   .btn:disabled { opacity: .5; cursor: default; }
+
+  .calendar-section { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-top: 24px; }
+  .calendar-week { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .calendar-day { flex: 1 1 130px; min-width: 130px; border: 1px solid var(--gridline); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .calendar-day.is-today { border-color: var(--series-1); }
+  .calendar-day-header { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .calendar-day.is-today .calendar-day-header { color: var(--series-1); }
+  .calendar-event { background: var(--chip-bg); border-radius: 8px; padding: 6px 8px; font-size: 12px; line-height: 1.4; }
+  .calendar-event-time { font-weight: 600; }
+  .calendar-event-actions { display:flex; gap:4px; margin-top:4px; }
+  .calendar-event-actions button { font-size: 11px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-muted); cursor: pointer; }
+  .calendar-empty-day { font-size: 12px; color: var(--text-muted); }
+  .calendar-add-row { margin-top: 14px; text-align: center; }
+  .calendar-form { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--gridline); display: flex; flex-direction: column; gap: 10px; }
+  .form-row { display: flex; gap: 12px; flex-wrap: wrap; position: relative; }
+  .form-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); flex: 1; min-width: 160px; }
+  .form-row input { font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--page-plane); color: var(--text-primary); }
+  .cal-company-results { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; max-height: 200px; overflow-y: auto; margin-top: 4px; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+  .cal-company-results button { display: block; width: 100%; text-align: left; padding: 8px 10px; font-size: 13px; background: none; border: none; color: var(--text-primary); cursor: pointer; font: inherit; }
+  .cal-company-results button:hover { background: var(--chip-bg); }
+  .cal-selected-job { font-size: 12px; color: var(--series-1); margin-top: 2px; }
+  .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .cal-form-error { color: var(--status-serious); font-size: 12px; margin: 0; }
 </style>
 </head>
 <body>
@@ -181,6 +204,47 @@
           <div class="value" id="tile-ended">–</div>
           <div class="sub">拿到 offer 或已被拒</div>
         </button>
+      </div>
+
+      <div class="section-title">未来 7 天日程</div>
+      <div class="calendar-section">
+        <div id="calendar-week" class="calendar-week"></div>
+        <div class="calendar-add-row">
+          <button class="btn btn-primary" id="calendar-add-btn">+ 添加日程</button>
+        </div>
+        <div id="calendar-form" class="calendar-form hidden">
+          <div class="form-row">
+            <label>日期<input type="date" id="cal-date"></label>
+            <label>时间<input type="time" id="cal-time"></label>
+          </div>
+          <div class="form-row">
+            <label>公司 / 岗位（从已投递里搜索）
+              <input type="text" id="cal-company-search" placeholder="输入公司名称或岗位关键词…" autocomplete="off">
+            </label>
+            <div id="cal-company-results" class="cal-company-results hidden"></div>
+          </div>
+          <div id="cal-selected-job" class="cal-selected-job hidden"></div>
+          <div class="form-row">
+            <label>事件内容
+              <input type="text" id="cal-event-type" list="cal-event-suggestions" placeholder="比如：二轮面试、测评…">
+            </label>
+          </div>
+          <datalist id="cal-event-suggestions">
+            <option value="笔试">
+            <option value="测评">
+            <option value="一面">
+            <option value="二面">
+            <option value="三面">
+            <option value="HR面">
+            <option value="终面">
+            <option value="谈薪">
+          </datalist>
+          <p id="cal-form-error" class="cal-form-error hidden"></p>
+          <div class="form-actions">
+            <button class="btn" id="cal-cancel-btn">取消</button>
+            <button class="btn btn-primary" id="cal-save-btn">保存</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -290,6 +354,8 @@
       data.jobPool.forEach((r, i) => { r.__rowIndex = i; });
       data.appLog = await readCSVFile('application_log.csv').catch(() => []);
       data.followUp = await readCSVFile('follow_up.csv').catch(() => []);
+      // Row position in follow_up.csv (excluding header) — needed to edit/delete a calendar event.
+      data.followUp.forEach((r, i) => { r.__rowIndex = i; });
     } catch (e) {
       document.getElementById('connect-title').textContent = '读取数据失败';
       document.getElementById('connect-desc').textContent = '';
@@ -305,6 +371,7 @@
     renderApplied();
     renderPending();
     renderEnded();
+    renderCalendar();
   }
 
   // ---------- categorization helpers ----------
@@ -367,8 +434,13 @@
     if (blob.indexOf('用户自行') !== -1) return { label: '用户自行投递（未经工具核实）', cls: 'chip-user' };
     return { label: 'Claude 浏览器操作（有截图/URL证据）', cls: 'chip-agent' };
   }
-  function currentStage(company) {
-    const fu = followUpsFor(company);
+  function currentStage(r) {
+    // current_stage on job_pool.csv is set verbatim from the calendar's
+    // event-content field (see saveCalendarEvent) — prefer it once set,
+    // since it's a direct user action rather than a guess. Fall back to the
+    // older follow_up-derived text for rows that predate that column.
+    if (r.current_stage && r.current_stage.trim()) return r.current_stage;
+    const fu = followUpsFor(r.company);
     if (!fu.length) return '已投递，等待中';
     const last = fu[fu.length-1];
     return (last.event_type ? last.event_type + '：' : '') + (last.next_action || last.status || '进行中');
@@ -443,7 +515,7 @@
       filtered.forEach(r => {
         const cat = category(r);
         const mode = submissionMode(r.company);
-        const stage = currentStage(r.company);
+        const stage = currentStage(r);
         const fu = followUpsFor(r.company);
         const timeline = fu.map(f => `<div class="timeline-item">${esc(f.date)} — ${esc(f.event_type)}：${esc(f.status)} ${esc(f.next_action)}</div>`).join('') || '<div class="timeline-item">暂无跟进记录</div>';
         const jd = jdFor(r.company);
@@ -611,6 +683,187 @@
     search.oninput = draw;
     draw();
   }
+
+  // ---------- calendar ----------
+  let calSelectedJob = null;   // job_pool row the form currently has selected
+  let calEditingRowIndex = null; // follow_up.csv rowIndex when editing an existing event, null when adding
+
+  function ymd(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function dayLabel(d, isToday) {
+    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    const label = (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + weekdays[d.getDay()];
+    return isToday ? '今天 · ' + label : label;
+  }
+
+  function renderCalendar() {
+    const weekEl = document.getElementById('calendar-week');
+    weekEl.innerHTML = '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      const iso = ymd(d);
+      const dayEvents = data.followUp
+        .filter(f => f.date === iso)
+        .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+      const dayEl = document.createElement('div');
+      dayEl.className = 'calendar-day' + (i === 0 ? ' is-today' : '');
+      const header = document.createElement('div');
+      header.className = 'calendar-day-header';
+      header.textContent = dayLabel(d, i === 0);
+      dayEl.appendChild(header);
+
+      if (!dayEvents.length) {
+        const empty = document.createElement('div');
+        empty.className = 'calendar-empty-day';
+        empty.textContent = '无安排';
+        dayEl.appendChild(empty);
+      } else {
+        dayEvents.forEach(ev => {
+          const evEl = document.createElement('div');
+          evEl.className = 'calendar-event';
+          evEl.innerHTML =
+            '<div><span class="calendar-event-time">' + esc(ev.time) + '</span> ' + esc(ev.company) + '</div>' +
+            '<div>' + esc(ev.job_title) + ' · ' + esc(ev.event_type) + '</div>' +
+            '<div class="calendar-event-actions"><button data-act="edit">编辑</button><button data-act="delete">删除</button></div>';
+          evEl.querySelector('[data-act="edit"]').addEventListener('click', () => openCalendarForm(ev));
+          evEl.querySelector('[data-act="delete"]').addEventListener('click', () => deleteCalendarEvent(ev));
+          dayEl.appendChild(evEl);
+        });
+      }
+      weekEl.appendChild(dayEl);
+    }
+  }
+
+  function resetCalendarForm() {
+    document.getElementById('cal-date').value = '';
+    document.getElementById('cal-time').value = '';
+    document.getElementById('cal-company-search').value = '';
+    document.getElementById('cal-event-type').value = '';
+    document.getElementById('cal-form-error').classList.add('hidden');
+    document.getElementById('cal-company-results').classList.add('hidden');
+    document.getElementById('cal-selected-job').classList.add('hidden');
+    calSelectedJob = null;
+    calEditingRowIndex = null;
+  }
+
+  function selectCalendarJob(r) {
+    calSelectedJob = r;
+    document.getElementById('cal-company-search').value = r.company + ' · ' + r.job_title;
+    document.getElementById('cal-company-results').classList.add('hidden');
+    const sel = document.getElementById('cal-selected-job');
+    sel.textContent = '已选择：' + r.company + ' · ' + r.job_title;
+    sel.classList.remove('hidden');
+  }
+
+  function openCalendarForm(existingEvent) {
+    resetCalendarForm();
+    document.getElementById('calendar-form').classList.remove('hidden');
+    if (existingEvent) {
+      calEditingRowIndex = existingEvent.__rowIndex;
+      document.getElementById('cal-date').value = existingEvent.date;
+      document.getElementById('cal-time').value = existingEvent.time;
+      document.getElementById('cal-event-type').value = existingEvent.event_type;
+      const jobRow = data.jobPool.find(r => r.company === existingEvent.company && r.job_title === existingEvent.job_title && r.status === 'Submitted');
+      if (jobRow) {
+        selectCalendarJob(jobRow);
+      } else {
+        const sel = document.getElementById('cal-selected-job');
+        sel.textContent = '找不到对应的"已投递"岗位了（可能状态已变化）— 需要重新搜索选择';
+        sel.classList.remove('hidden');
+      }
+    }
+  }
+
+  function searchCalendarCompanies(q) {
+    const resultsEl = document.getElementById('cal-company-results');
+    const query = q.trim().toLowerCase();
+    if (!query) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
+    const pool = data.jobPool.filter(r => r.status === 'Submitted');
+    const matches = pool.filter(r =>
+      (r.company || '').toLowerCase().includes(query) || (r.job_title || '').toLowerCase().includes(query)
+    ).slice(0, 8);
+    resultsEl.innerHTML = '';
+    if (!matches.length) {
+      resultsEl.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:var(--text-muted);">没有匹配"已投递"里的公司/岗位</div>';
+      resultsEl.classList.remove('hidden');
+      return;
+    }
+    matches.forEach(r => {
+      const btn = document.createElement('button');
+      btn.textContent = r.company + ' · ' + r.job_title;
+      btn.addEventListener('click', () => selectCalendarJob(r));
+      resultsEl.appendChild(btn);
+    });
+    resultsEl.classList.remove('hidden');
+  }
+
+  async function saveCalendarEvent() {
+    const errEl = document.getElementById('cal-form-error');
+    errEl.classList.add('hidden');
+    const date = document.getElementById('cal-date').value;
+    const time = document.getElementById('cal-time').value;
+    const event_type = document.getElementById('cal-event-type').value.trim();
+    if (!date || !time || !event_type || !calSelectedJob) {
+      errEl.textContent = '日期、时间、公司/岗位、事件内容都要填';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    const saveBtn = document.getElementById('cal-save-btn');
+    saveBtn.disabled = true;
+    try {
+      const isEdit = calEditingRowIndex !== null;
+      const body = isEdit
+        ? { followUpRowIndex: calEditingRowIndex, jobRowIndex: calSelectedJob.__rowIndex, company: calSelectedJob.company, job_title: calSelectedJob.job_title, date, time, event_type }
+        : { jobRowIndex: calSelectedJob.__rowIndex, company: calSelectedJob.company, job_title: calSelectedJob.job_title, date, time, event_type };
+      const res = await fetch(isEdit ? '/api/calendar/update' : '/api/calendar/add', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || !result.ok) throw new Error(result.error || ('HTTP ' + res.status));
+      location.reload(); // same full-reload pattern as elsewhere in this dashboard
+    } catch (e) {
+      errEl.textContent = '保存失败：' + e.message;
+      errEl.classList.remove('hidden');
+      saveBtn.disabled = false;
+    }
+  }
+
+  async function deleteCalendarEvent(ev) {
+    if (!confirm('删除这条日程：' + ev.date + ' ' + ev.time + ' ' + ev.company + ' · ' + ev.event_type + '？')) return;
+    try {
+      const res = await fetch('/api/calendar/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followUpRowIndex: ev.__rowIndex, company: ev.company, job_title: ev.job_title, event_type: ev.event_type, date: ev.date, time: ev.time }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || !result.ok) throw new Error(result.error || ('HTTP ' + res.status));
+      location.reload();
+    } catch (e) {
+      alert('删除失败：' + e.message);
+    }
+  }
+
+  document.getElementById('calendar-add-btn').addEventListener('click', () => openCalendarForm(null));
+  document.getElementById('cal-cancel-btn').addEventListener('click', () => {
+    document.getElementById('calendar-form').classList.add('hidden');
+    resetCalendarForm();
+  });
+  document.getElementById('cal-save-btn').addEventListener('click', saveCalendarEvent);
+  document.getElementById('cal-company-search').addEventListener('input', (e) => {
+    calSelectedJob = null;
+    document.getElementById('cal-selected-job').classList.add('hidden');
+    searchCalendarCompanies(e.target.value);
+  });
+  document.addEventListener('click', (e) => {
+    const input = document.getElementById('cal-company-search');
+    const results = document.getElementById('cal-company-results');
+    if (e.target !== input && !results.contains(e.target)) results.classList.add('hidden');
+  });
 
   // ---------- navigation ----------
   function showView(name) {

@@ -38,6 +38,7 @@ Fields:
 - `next_action`: what should happen next.
 - `notes`: short context.
 - `cohort_match_status`: `Yes` / `No` / `Unclear` — whether the target hiring cycle (e.g. a specific graduating class / 届 for campus recruiting) has been explicitly confirmed open for this row. Set this explicitly every time you finish checking a company; don't leave the dashboard to guess it from free-text `notes`. The dashboard's "confirmed open, not yet applied" view is driven entirely by this column.
+- `current_stage`: free-text label for where an already-submitted application currently stands (e.g. "笔试", "二面"). Set by the dashboard's calendar "add/edit event" action, verbatim as typed — it does not add a suffix or normalize wording, since every company's process reads differently. Left blank until the first calendar event is scheduled for that job.
 
 ### `application_log.csv`
 
@@ -74,8 +75,8 @@ Post-application pipeline.
 
 Fields:
 
-- `date`, `company`, `job_title`, `contact`, `channel`.
-- `event_type`: recruiter reply, rejection, interview, assessment, follow-up.
+- `date`, `time`, `company`, `job_title`, `contact`, `channel`.
+- `event_type`: recruiter reply, rejection, interview, assessment, follow-up. Rows added via the dashboard's calendar UI use this field as free-text event content and also copy it into `job_pool.csv`'s `current_stage` for that job.
 - `deadline`, `next_action`, `status`, `notes`.
 
 ### `resume_rules.csv`

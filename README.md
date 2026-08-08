@@ -78,7 +78,9 @@ The dashboard is a static HTML page + a tiny local Node server (no framework, no
 - **Pending** — rows with `status = Pending` / `Needs user`, split into "confirmed open, not yet applied" vs. "not open / unclear" using the `cohort_match_status` column (see `templates/dashboard-template/README.md` for the full field reference).
 - **Ended** — rows marked `Offer` or `Rejected`.
 
-You can open the CSVs directly in Excel/Google Sheets/Numbers too — the dashboard is just a nicer view on top of the same files (read-only, except for the "mark as ended" action above).
+Below the three views, a **7-day calendar** shows upcoming events (tests, interviews, anything you schedule) for jobs in the Applied bucket. Click **"+ 添加日程"** to add one: pick the date/time, search for the company/job from your already-submitted list, and type the event content freely (e.g. "二轮面试", "笔试") — whatever you type is used verbatim, since every company's process reads differently. Saving an event also stamps that job's `current_stage` in `job_pool.csv` with the same text, so the Applied card immediately shows it. Events can be edited or deleted later from the calendar; deleting one does not revert `current_stage` (there's no reliable "previous stage" to roll back to — edit it manually if needed). Calendar data lives in `follow_up.csv`.
+
+You can open the CSVs directly in Excel/Google Sheets/Numbers too — the dashboard is just a nicer view on top of the same files (read-only, except for the "mark as ended" and calendar actions above).
 
 **Important:** open the dashboard through `start-dashboard.bat`/`start-dashboard.sh`, not by double-clicking `dashboard.html` directly — the page fetches the CSVs over `http://`, which browsers block when a file is opened directly from disk.
 
