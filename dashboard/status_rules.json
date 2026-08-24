@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "authoritative_field": "lifecycle_status",
+  "statuses": [
+    "Potential",
+    "To Review",
+    "Interested",
+    "To Apply",
+    "Applied",
+    "Online Assessment",
+    "Interview",
+    "Offer",
+    "Rejected",
+    "Withdrawn",
+    "Closed / Expired",
+    "Archived"
+  ],
+  "active_unapplied": ["Potential", "To Review", "Interested", "To Apply"],
+  "applied_or_later": ["Applied", "Online Assessment", "Interview", "Offer"],
+  "hidden_from_unapplied": ["Applied", "Online Assessment", "Interview", "Offer", "Rejected", "Withdrawn", "Closed / Expired", "Archived"],
+  "legacy_mapping": {
+    "Submitted": "Applied",
+    "Pending": "To Review",
+    "Needs user": "To Review",
+    "Needs verification": "To Review",
+    "Skipped": "Archived"
+  },
+  "application_list": {
+    "record_model": "one_application_with_timeline_events",
+    "filters": ["All", "Active", "Need Action", "Waiting", "Rejected"],
+    "status_colors": {
+      "green": ["OA received", "Interview", "Final round", "Offer"],
+      "blue": ["Submitted", "Under review"],
+      "gray": ["Rejected", "Withdrawn", "Closed"]
+    },
+    "sort_order": ["Need Action", "Active", "Waiting", "Rejected"],
+    "deadline_priority": "earliest_open_deadline_first"
+  },
+  "dedupe_precedence": ["job_url", "job_id", "company+job_title+location+programme_type"],
+  "status_precedence": ["Offer", "Interview", "Online Assessment", "Applied", "Interested", "To Apply", "To Review", "Potential", "Rejected", "Withdrawn", "Closed / Expired", "Archived"]
+}

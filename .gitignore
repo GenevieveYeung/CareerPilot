@@ -1,3 +1,53 @@
-my-materials/
+# CareerPilot source repository must not contain local user data.
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc
 .DS_Store
 Thumbs.db
+
+# Local configuration, credentials and runtime state.
+.env
+.env.*
+!.env.example
+config/local.*
+data/
+runtime/
+cache/
+logs/
+tmp/
+.secrets/
+**/*.dpapi
+**/credentials/
+
+# User-owned materials and application records.
+application_materials/
+my-materials/
+application_previews/
+submitted_snapshots/
+approved_resumes/
+drafts/
+cover_letters/
+_control/
+exports/
+dashboard/application_log.csv
+dashboard/application_queue.csv
+dashboard/job_pool.csv
+dashboard/follow_up.csv
+dashboard/*.csv
+dashboard/*.inspect.ndjson
+
+# Generated QA output and private screenshots.
+audit/output/
+audit/screenshots/
+dashboard/audit/
+.playwright-cli/
+*.inspect.ndjson
+*.tmp
+*.log
+
+# Local archives and migrations may contain private data.
+archive/
+_archive/
+trash/

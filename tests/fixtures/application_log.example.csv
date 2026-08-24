@@ -1,0 +1,2 @@
+attempt_date,company,job_title,job_url,platform,status,submission_evidence,resume_used,notes
+2026-01-01,Example Corp,Sample Graduate Role,https://example.com/jobs/sample,Example ATS,Pending,synthetic fixture,sample_resume.pdf,synthetic test record

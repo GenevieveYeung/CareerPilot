@@ -1,11 +1,36 @@
 ---
-name: jobhuntbot
-description: "A reusable job application workflow for Codex and other AI agents. Use when a user wants to set up or run an AI-assisted job search system: collecting a candidate profile, creating an application dashboard, defining screening and resume-routing rules, finding and ranking job leads, applying to jobs within explicit safety boundaries, recording outcomes, triaging blockers, or iterating a job application workflow."
+name: careerpilot
+description: "A reusable job application workflow for Codex and other AI agents. Use when a user wants to set up or run an AI-assisted job search system: collecting a candidate profile, creating an application dashboard, defining screening and resume-routing rules, strict-copy tailoring from a user-approved resume library, finding and ranking job leads, applying to jobs within explicit safety boundaries, recording outcomes, triaging blockers, or iterating a job application workflow."
 ---
 
-# JobHuntBot
+# CareerPilot
 
-JobHuntBot is a job application operating workflow for AI agents. It helps users turn job searching into a repeatable system: profile, dashboard, screening rules, resume strategy, application execution, blocker triage, and follow-up.
+CareerPilot is a job application operating workflow for AI agents. It helps users turn job searching into a repeatable system: profile, dashboard, screening rules, resume strategy, application execution, blocker triage, and follow-up.
+
+## Canonical layout (fixed)
+
+This workspace is operated as CareerPilot. These locations are authoritative:
+
+- `dashboard/` — active frontend, backend and API code only.
+- `%LOCALAPPDATA%\CareerPilot\data\` — live job, application, event, profile and reminder state.
+- User-selected Materials Root — source and application-ready resumes/materials.
+- `%LOCALAPPDATA%\CareerPilot\logs\` — local operational logs.
+- External archive — legacy copies, private backups and historical audits; read-only.
+
+Fixed operating rules:
+
+1. Never create a second live tracker outside the CareerPilot runtime state.
+2. Never copy candidate facts or private materials into the public repository.
+3. Every application attempt gets exactly one Application record and a traceable event/snapshot.
+4. Search by company plus job URL or requisition ID before adding a row; update an existing row instead of duplicating it.
+5. Missing links, dates, materials, or eligibility facts remain blank or `Needs user`; never infer them.
+6. `Submitted` requires explicit user confirmation or visible employer confirmation.
+7. Do not move, rename, overwrite, or delete original application materials.
+8. Treat the external archive as read-only history and never write new applications there.
+9. Any row with `current_validity` starting with `Expired` or `Expired /` is historical only: exclude it from active pending lists and calendar views, and never recommend applying from it.
+10. Any open follow-up linked to an expired row must be hidden from the calendar; do not create a new follow-up for it.
+
+When an older instruction conflicts with this section, this section controls file location and record format.
 
 ## Core Contract 
 
@@ -27,13 +52,13 @@ If any source is missing, initialize it first. Do not guess identity, legal, wor
 
 ### 1. Initialize the System
 
-Read `references/setup-workflow.md` when:
+Read `docs/FIRST_RUN.md` and `docs/ARCHITECTURE.md` when:
 
-- The user is installing JobHuntBot for the first time.
+- The user is installing CareerPilot for the first time.
 - The user asks to create a profile, dashboard, rules, templates, or GitHub-ready setup.
 - The user has not provided enough information for safe applications.
 
-Use the templates in `templates/` to create user-owned files:
+Use the safe examples in `config/` and `tests/fixtures/`; create user-owned files only under the local CareerPilot data root:
 
 - `candidate_profile.template.json`
 - `application_rules.template.md`
@@ -68,12 +93,12 @@ If a company limits applicants to one or two total submissions in the cycle, say
 
 Before touching the application, decide which of the candidate's experiences to actually feature for this specific posting — this is a separate decision from which resume file to use.
 
-- Check `experience_bank.md` (created from `templates/experience_bank.template.md` during setup) for the target role family's candidate pool — it deliberately keeps a wide, overlapping pool per role family (aim for 3-5 internships + 3+ projects rated `强`/`中`, fewer only where the candidate's real background is genuinely thin in that direction) rather than one narrow "owned" set, since closely related role families usually share supporting evidence.
+- Check the user's local experience/profile records for the target role family's candidate pool; never place those facts in a public fixture.
 - Read this posting's actual JD and pick 2-4 experiences from that candidate pool that best fit it — favor `强` matches, but a `中` match that happens to hit something the JD specifically calls out can outrank a `强` match that doesn't. If the JD emphasizes something the whole pool underrepresents, pull in a different experience from the full inventory instead of forcing a weak fit.
 - **Before using them, tell the user which experiences (internships and projects) were selected for this application and why.** Keep it short (a list of names + one-line reasoning), but always surface it as a checkpoint — don't silently pick and move on.
-- Use the selected 2-4 experiences — not the full inventory — when answering resume-adjacent free-text fields: "relevant experience/project" custom questions, self-evaluation/cover-letter fields (synthesize personality + the selected experiences + this specific company/role fit; don't dump a generic bio), and Precision-mode resume bullet emphasis.
-- After submitting, note which experiences were actually used in `application_log`'s notes — this lets a later application to a similar role or company reuse the same reasoning instead of re-deriving it.
-- Same truthfulness rule as everywhere else: reorder, select, and emphasize freely; never invent, exaggerate, or stretch an experience to make it look like a better fit than it is. If nothing in the bank fits well, say so and use the closest honest match.
+- Use the selected 2-4 experiences — not the full inventory — when answering resume-adjacent free-text fields: "relevant experience/project" custom questions, self-evaluation/cover-letter fields (synthesize personality + the selected experiences + this specific company/role fit; don't dump a generic bio), and Precision-mode resume content selection/order. Approved resume bullets remain verbatim under STRICT COPY MODE.
+- After submitting, note which experiences were actually used in the local Application record — this lets a later application to a similar role or company reuse the same reasoning instead of re-deriving it.
+- Same truthfulness rule as everywhere else: under STRICT COPY MODE, select and order complete approved content only; never invent, exaggerate, stretch, or rewrite an experience to make it look like a better fit. If nothing in the bank fits well, say so and use the closest honest match.
 
 ### 6. Route the Resume Strategy
 
@@ -86,11 +111,42 @@ Default to Volume mode unless the user explicitly asks for Precision. Individual
 
 Never fabricate experience, credentials, degrees, employers, dates, work authorization, or portfolio artifacts.
 
+### 6A. HARD REQUIREMENT — Approved Resume Library / STRICT COPY MODE
+
+This rule overrides any older instruction that permits an agent to rewrite, polish, paraphrase, shorten, expand, keyword-align, or otherwise improve an approved resume bullet. For any custom resume, the default operation is **SELECT + COPY + REORDER + COMBINE**, never rewrite.
+
+The user's **Approved Resume Library** (resumes the user has explicitly marked as satisfied/approved) is the only primary content source for tailored resumes. A raw folder scan, draft, half-finished file, automatically generated file, unconfirmed version, or archived/obsolete file is not an approved source merely because it exists. If approval status is unknown, treat the material as unapproved and ask the user or use an already-approved alternative.
+
+In default **STRICT COPY MODE**:
+
+- Copy every selected bullet or block in full, verbatim, from one identifiable approved source. Never splice fragments from different bullets or sources.
+- Do not paraphrase, polish, shorten, expand, change verbs, replace synonyms, merge bullets, split bullets, rewrite metrics, add ATS keywords, optimize grammar, or optimize style.
+- Do not invent bullets, facts, skills, metrics, tools, responsibilities, projects, dates, credentials, or outcomes. Skills may only be selected, removed, or reordered from approved skills/facts.
+- Allowed operations are selecting relevant complete blocks, deleting irrelevant approved content, reordering complete blocks/bullets, swapping a complete project or experience block, and combining complete blocks from multiple approved resumes.
+- If the JD has no direct match in the Approved Resume Library, say so and use the closest honest approved content only; never create a new claim to fill the gap.
+
+One-page handling must not be solved by rewriting. For an exactly one-page A4 resume, remove lower-priority approved bullets/projects, use an existing shorter approved variant, reduce the number of complete approved blocks, or adjust permitted spacing while preserving the chosen template. If the page has spare space, add only another relevant approved block or leave the space blank.
+
+Keep **content reference** and **format template** separate. A resume can be approved for content, format, or both. When a user selects a DOCX format template, copy that DOCX first and perform selection/reordering inside the copy; do not recreate the layout in a new document. Preserve page geometry, typography, margins, section order, spacing, bullet style, header, footer, tab stops, and visual hierarchy unless the user explicitly authorizes a redesign.
+
+Every generated resume is a **Draft** until the user explicitly marks it as “加入满意简历” / approved. It must never be promoted automatically. Generate a Source Report recording the target job, format template, each selected experience/project/bullet, its exact source file, and `Copied verbatim: YES/NO`. In STRICT COPY MODE, every selected content item must be `YES`; if any item cannot be traced, stop and ask rather than silently generating it.
+
+Material rules:
+
+- Use only confirmed facts and approved source-CV content. A detailed master CV may help locate a fact, but it is not an approved content source unless the user explicitly approves it.
+- Default draft CV filename: `<Candidate Name>_CV_<Company>_<Role>_Draft.docx`; application-ready PDF may use the corresponding company/role name. Do not hide the Draft state from the user.
+- Default cover-letter filename: `<Candidate Name>_Cover_Letter_<Company>.pdf`.
+- Deliver application-ready CVs and cover letters as PDF by default. Keep an editable DOCX working copy for a draft when needed; do not overwrite source files.
+- CV and cover letter must each fit on exactly one page unless the user explicitly requests otherwise. Render the DOCX to PDF and verify exactly one A4 page, readable/selectable text, no clipping or overflow, and preserved template formatting before presenting it.
+- Cover letters remain a separate writing task; do not treat a drafted cover letter as permission to rewrite approved resume bullets.
+
+For finance, AI/ML, data, graduate/MT, or hybrid roles, choose the most relevant approved resume(s) and complete approved blocks; do not borrow or rewrite unsupported material. Before generating a draft, report the selected approved sources and why. After generating, report the Source Report and keep the result in Draft status for the user's wording edits and approval.
+
 ### 7. Fill Out the Application
 
-Read `references/application-playbook.md` before operating browser-based applications, LinkedIn Easy Apply, Simplify, Greenhouse, Lever, Ashby, Workday, or other ATS flows.
+Read `docs/SECURITY.md` before operating browser-based applications or ATS flows.
 
-Prefer uploading the resume first and letting the ATS auto-parse it — it's less error-prone than hand-typing education/experience. Fill whatever you confidently can from `candidate_profile.json`, `resume_routing.md`, `experience_bank.md` (for relevant-experience/self-evaluation fields, using the combo picked in step 5), and `answer_bank.md`. Stop and ask the user (don't guess) for anything on the `never_guess` list, anything requiring a subjective call, or anything the form surfaces that isn't backed by the résumé or profile (auto-filled bio text from a saved account, for instance) — verify it's true before letting it ride into a real submission.
+Prefer uploading the resume first and letting the ATS auto-parse it — it's less error-prone than hand-typing education/experience. Fill only from the user's local Profile, Resume Library and Answer Bank. Stop and ask the user (don't guess) for anything on the `never_guess` list or anything the form surfaces that isn't backed by the résumé or profile.
 
 Stop or hand off for CAPTCHA, Cloudflare, anti-bot checks, login or 2FA, unclear legal/identity questions, missing files, payment prompts, permission prompts, or anything that would require bypassing a site control.
 
@@ -110,18 +166,18 @@ Every job lead or attempt must end in one of these states:
 
 Count only confirmed submissions. Saved jobs, trackers, autofill badges, or "quick apply" labels do not count.
 
-For a first trial or demo run, default to lead finding only: find, screen, classify, and update the dashboard without opening real application flows or submitting anything. In lead-finding-only runs, update `job_pool`, `daily_dashboard`, `blocker_queue`, and `automation_rules` as needed; leave `application_log` empty because no application attempt occurred.
+For a first trial or demo run, default to lead finding only: find, screen and classify without opening real application flows or submitting anything. Record only synthetic test data in public fixtures.
 
-For a real submission, update the same dashboard files (`job_pool` status, `application_log` with the resume version/evidence/answers used, `follow_up` if a next step is already known, `daily_dashboard` summary) *and* the candidate's own profile: if filling the form surfaced a fact that isn't already in `candidate_profile.json` (a new internship detail, an updated exam/grade result, a preference the user stated on the spot, anything), write it back into the profile before moving on — don't let it live only in the one application you just filed. Same discipline as everywhere else in this skill: record what you've confirmed, don't invent what you haven't.
+For a real submission, update the local Application record, Application Event timeline and submitted-resume snapshot, and ask before writing any newly confirmed stable fact back to the local Profile.
 
-When recording a submission in `application_log`, also capture the full job description text (responsibilities and requirements) from the official posting into the `job_description` field, copied verbatim from the source — not summarized or paraphrased. This is what makes later interview prep possible without having to re-find a posting that may since have been taken down.
+When recording a submission, preserve the official URL and evidence in the local Application record; do not copy private application history into public fixtures.
 
 ### 10. Learn From Blockers
 
-After each run, summarize blockers and convert repeated issues into rules. JobHuntBot should improve through use: address matching, dropdown handling, resume upload checks, account/session checks, and ATS-specific lessons belong in the dashboard and rules.
+After each run, summarize blockers and convert repeated issues into rules. CareerPilot should improve through use: address matching, dropdown handling, resume upload checks, account/session checks, and ATS-specific lessons belong in the dashboard and rules.
 
 ## Safety
 
-Read `references/safety-and-boundaries.md` when the user asks about automation limits, CAPTCHA, email verification, account login, privacy, public sharing, or what should not be included in a repo.
+Read `docs/SECURITY.md` when the user asks about automation limits, CAPTCHA, email verification, account login, privacy, public sharing, or what should not be included in a repo.
 
-Do not publish or copy private resumes, phone numbers, emails, addresses, immigration documents, application history, browser sessions, cookies, OTPs, or user-specific secrets into a public JobHuntBot package.
+Do not publish or copy private resumes, phone numbers, emails, addresses, immigration documents, application history, browser sessions, cookies, OTPs, or user-specific secrets into a public CareerPilot package.

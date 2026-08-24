@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JobHuntBot Dashboard · 求职进度看板</title>
+<title>CareerPilot Dashboard · 求职进度看板</title>
 <style>
   :root {
     --surface-1:      #fcfcfb;
@@ -141,6 +141,15 @@
   .btn-good { color: var(--status-good); border-color: var(--status-good); }
   .btn-bad { color: var(--status-critical); border-color: var(--status-critical); }
   .btn:disabled { opacity: .5; cursor: default; }
+  .status-select { font: inherit; font-size: 12px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
+  .quick-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .quick-actions .btn { font-size:12px; padding:5px 9px; }
+  .modal-backdrop { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.42); }
+  .modal { width:min(720px,100%); max-height:90vh; overflow:auto; background:var(--surface-1); color:var(--text-primary); border:1px solid var(--border); border-radius:14px; padding:20px; box-shadow:0 18px 60px rgba(0,0,0,.25); }
+  .modal h3 { margin:0 0 14px; }
+  .modal .form-row label { min-width:220px; }
+  .modal textarea, .modal select { font:inherit; font-size:13px; padding:7px 10px; border-radius:8px; border:1px solid var(--border); background:var(--page-plane); color:var(--text-primary); }
+  .modal textarea { min-height:72px; resize:vertical; }
 
   .calendar-section { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-top: 24px; }
   .calendar-week { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
@@ -169,10 +178,12 @@
 <body>
 
 <header>
-  <h1>JobHuntBot Dashboard · 求职进度看板</h1>
+  <h1>CareerPilot Dashboard · 求职进度看板</h1>
   <div class="btn-row">
     <span class="meta" id="last-updated"></span>
     <button class="btn" id="theme-toggle">🌓</button>
+    <button class="btn" id="add-job-btn">+ Add Job</button>
+    <button class="btn" id="refresh-jobs-btn">Refresh Jobs</button>
     <button class="btn hidden" id="refresh-btn">刷新</button>
   </div>
 </header>
@@ -266,6 +277,7 @@
           <select id="pending-filter-cat"><option value="">全部分类</option></select>
           <select id="pending-filter-priority"><option value="">全部优先级</option></select>
           <select id="pending-filter-city"><option value="">全部城市</option></select>
+          <select id="pending-filter-programme"><option value="">全部项目类型</option><option value="Graduate / MT only">Graduate / MT only</option></select>
           <input type="text" id="pending-search" placeholder="搜索公司…">
         </div>
       </div>
@@ -273,6 +285,47 @@
       <div id="pending-open-list"></div>
       <div class="section-title" id="pending-notopen-title">未开 / 状态不明</div>
       <div id="pending-notopen-list"></div>
+    </div>
+
+    <div id="job-modal-backdrop" class="modal-backdrop hidden">
+      <div class="modal">
+        <h3 id="job-modal-title">+ Add Job</h3>
+        <div class="form-row">
+          <label>Job URL（可先只填这个）<input id="job-url" type="url" placeholder="https://…"></label>
+          <label>Source<input id="job-source" type="text" placeholder="Official Careers / JobsDB…"></label>
+        </div>
+        <div class="form-row">
+          <label>Company<input id="job-company" type="text"></label>
+          <label>Job Title<input id="job-title" type="text"></label>
+        </div>
+        <div class="form-row">
+          <label>Location<input id="job-location" type="text" placeholder="Hong Kong"></label>
+          <label>Job ID<input id="job-id" type="text"></label>
+        </div>
+        <div class="form-row">
+          <label>Programme Type<select id="job-programme"><option>Graduate Programme</option><option>Management Trainee</option><option>Internship</option><option>Placement</option><option>Entry-level</option><option>Experienced Hire</option></select></label>
+          <label>Status<select id="job-status"></select></label>
+        </div>
+        <div class="form-row">
+          <label>Priority<input id="job-priority" type="text"></label>
+          <label>Deadline<input id="job-deadline" type="date"></label>
+        </div>
+        <div class="form-row"><label>Tags<input id="job-tags" type="text" placeholder="AI; Data; Risk"></label></div>
+        <div class="form-row"><label>Notes<textarea id="job-notes"></textarea></label></div>
+        <p id="job-modal-error" class="cal-form-error hidden"></p>
+        <div class="form-actions"><button class="btn" id="job-cancel-btn">取消</button><button class="btn" id="job-fetch-btn">从 URL 尝试提取</button><button class="btn btn-primary" id="job-save-btn">保存岗位</button></div>
+      </div>
+    </div>
+
+    <div id="applied-modal-backdrop" class="modal-backdrop hidden">
+      <div class="modal">
+        <h3>Mark as Applied</h3>
+        <div class="form-row"><label>Application Date<input id="applied-date" type="date"></label><label>CV Version<input id="applied-cv" type="text" placeholder="例如 AI_Final_One_Page"></label></div>
+        <div class="form-row"><label>Cover Letter Version<input id="applied-cover" type="text"></label></div>
+        <div class="form-row"><label>Notes<textarea id="applied-notes"></textarea></label></div>
+        <p id="applied-modal-error" class="cal-form-error hidden"></p>
+        <div class="form-actions"><button class="btn" id="applied-cancel-btn">取消</button><button class="btn btn-primary" id="applied-save-btn">确认已投递</button></div>
+      </div>
     </div>
 
     <div id="ended-view" class="hidden">
@@ -338,6 +391,16 @@
 
   // ---------- data ----------
   const data = { jobPool: [], appLog: [], followUp: [] };
+  const STATUS_OPTIONS = ['Potential','To Review','Interested','To Apply','Applied','Online Assessment','Interview','Offer','Rejected','Withdrawn','Closed / Expired','Archived'];
+  function statusOf(r) {
+    if (r.lifecycle_status && r.lifecycle_status.trim()) return r.lifecycle_status.trim();
+    if (r.status === 'Submitted') return 'Applied';
+    if (r.status === 'Offer' || r.status === 'Rejected') return r.status;
+    if (r.status === 'Skipped') return ['Expired','Expired/Closed','Closed','Removed','Invalid Link','Unknown','Duplicate'].includes((r.current_validity||'').trim()) ? 'Closed / Expired' : 'Archived';
+    return 'To Review';
+  }
+  function isAppliedStatus(r) { return ['Applied','Online Assessment','Interview','Offer'].includes(statusOf(r)); }
+  function isUnappliedStatus(r) { return ['Potential','To Review','Interested','To Apply'].includes(statusOf(r)); }
 
   async function readCSVFile(name) {
     const res = await fetch('./' + name + '?t=' + Date.now(), { cache: 'no-store' });
@@ -353,6 +416,50 @@
       // "mark as ended" action tells the server which row to update.
       data.jobPool.forEach((r, i) => { r.__rowIndex = i; });
       data.appLog = await readCSVFile('application_log.csv').catch(() => []);
+      // application_log.csv is the authoritative submission register. Reconcile
+      // it with job_pool.csv so every submitted application appears in Applied,
+      // even when an older update wrote only to the application log.
+      const norm = v => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      data.appLog.filter(a => a.status === 'Submitted').forEach(a => {
+        const match = data.jobPool.find(r =>
+          (a.job_url && r.job_url && norm(a.job_url) === norm(r.job_url)) ||
+          (norm(a.company) === norm(r.company) && norm(a.job_title) === norm(r.job_title))
+        );
+        if (match) {
+          match.status = 'Submitted';
+          match.lifecycle_status = match.lifecycle_status && !['Potential','To Review','Interested','To Apply'].includes(match.lifecycle_status) ? match.lifecycle_status : 'Applied';
+          match.application_date = match.application_date || a.attempt_date || '';
+          if (!match.current_stage) match.current_stage = 'Submitted; awaiting employer response';
+          return;
+        }
+        data.jobPool.push({
+          date_found: a.attempt_date || '', company: a.company || '',
+          job_title: a.job_title || '', role_family: '', level: '', location: '',
+          remote_policy: '', source: a.platform || '', job_url: a.job_url || '',
+          posted_date: '', priority: '', status: 'Submitted', resume_variant: '',
+          skip_reason: '', blocker: '', next_action: 'Follow up only if employer provides a next step',
+          notes: a.notes || a.submission_evidence || '', cohort_match_status: '',
+          current_stage: 'Submitted; awaiting employer response', current_validity: 'Submitted', lifecycle_status: 'Applied', application_date: a.attempt_date || '', programme_type: 'Entry-level', tags: 'Applied; application log',
+          __rowIndex: -1, __displayOnly: true
+        });
+      });
+      const currentView = await readCSVFile('current_opportunity_view.csv').catch(() => []);
+      currentView.filter(v => (v.current_validity || '') === 'Validated + Active' && !['Submitted','Skipped'].includes(v.status) && isUnappliedStatus(v)).forEach(v => {
+        const exists = data.jobPool.some(r =>
+          (v.job_url && r.job_url && norm(v.job_url) === norm(r.job_url)) ||
+          (norm(v.company) === norm(r.company) && norm(v.job_title) === norm(r.job_title))
+        );
+        if (!exists) data.jobPool.push({
+          date_found: v.date_found || '', company: v.company || '', job_title: v.job_title || '',
+          role_family: v.role_family || '', level: v.level || '', location: v.location || '',
+          source: v.source || '', job_url: v.job_url || '', priority: v.priority || '',
+          status: v.status || 'Needs user', lifecycle_status: v.lifecycle_status || 'To Review', resume_variant: v.resume_variant || '', programme_type: v.programme_type || v['Internship / Graduate'] || '', tags: v.tags || '',
+          next_action: 'Review complete JD and eligibility before any application flow',
+          notes: v.current_validity_reason || '', cohort_match_status: 'Yes',
+          current_validity: v.current_validity || '', current_checked_date: v.current_checked_date || '',
+          __rowIndex: -1, __displayOnly: true
+        });
+      });
       data.followUp = await readCSVFile('follow_up.csv').catch(() => []);
       // Row position in follow_up.csv (excluding header) — needed to edit/delete a calendar event.
       data.followUp.forEach((r, i) => { r.__rowIndex = i; });
@@ -397,6 +504,25 @@
   function isCycleOpen(row) {
     return row.cohort_match_status === 'Yes';
   }
+  // Active pending UI is intentionally conservative: only a concrete vacancy
+  // page that was opened recently, matched to the record, and exposed an
+  // application entry may appear here. Historical/unknown/stale rows stay in
+  // the CSV for audit but never leak into the active basket.
+  function validationAgeDays(row) {
+    if (!row.current_checked_date) return Infinity;
+    const d = new Date(row.current_checked_date + 'T00:00:00');
+    if (Number.isNaN(d.getTime())) return Infinity;
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+  }
+  function isCurrentNotExpired(row) {
+    if (!isUnappliedStatus(row)) return false;
+    if ((row.current_validity || '').trim() !== 'Validated + Active') return false;
+    // A validated row is displayable for three days. At day 4 it must be
+    // rechecked before it can return to the active basket; at day 8 it is
+    // treated as stale regardless of its prior status.
+    const age = validationAgeDays(row);
+    return age >= 0 && age <= 3;
+  }
   function esc(s) {
     return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
@@ -431,7 +557,9 @@
     if (!logs.length) return { label: '记录方式未知', cls: '' };
     const l = logs[logs.length-1];
     const blob = (l.submission_evidence||'') + (l.notes||'');
-    if (blob.indexOf('用户自行') !== -1) return { label: '用户自行投递（未经工具核实）', cls: 'chip-user' };
+    if (blob.indexOf('用户自行') !== -1 || /user[- ]confirmed|user independently|user completed/i.test(blob)) {
+      return { label: '用户确认已投递', cls: 'chip-user' };
+    }
     return { label: 'Claude 浏览器操作（有截图/URL证据）', cls: 'chip-agent' };
   }
   function currentStage(r) {
@@ -448,9 +576,9 @@
 
   // ---------- home tiles ----------
   function renderHome() {
-    const applied = data.jobPool.filter(r => r.status === 'Submitted');
-    const ended = data.jobPool.filter(r => r.status === 'Offer' || r.status === 'Rejected');
-    const pending = data.jobPool.filter(r => r.status === 'Pending' || r.status === 'Needs user');
+    const applied = data.jobPool.filter(isAppliedStatus);
+    const ended = data.jobPool.filter(r => ['Offer','Rejected','Closed / Expired','Archived'].includes(statusOf(r)) && !isAppliedStatus(r));
+    const pending = data.jobPool.filter(r => isCurrentNotExpired(r));
     document.getElementById('tile-applied').textContent = applied.length;
     document.getElementById('tile-pending').textContent = pending.length;
     document.getElementById('tile-ended').textContent = ended.length;
@@ -492,7 +620,7 @@
     const catSel = document.getElementById('applied-filter-cat');
     const search = document.getElementById('applied-search');
 
-    let rows = data.jobPool.filter(r => r.status === 'Submitted');
+    let rows = data.jobPool.filter(isAppliedStatus);
 
     // populate category filter once
     if (catSel.options.length <= 1) {
@@ -540,6 +668,7 @@
             ${r.job_url ? `<dt>链接</dt><dd><a href="${esc(r.job_url)}" target="_blank" rel="noopener">${esc(r.job_url)}</a></dd>` : ''}
             <dt>跟进时间线</dt><dd>${timeline}</dd>
             <div class="end-progress">
+              <select class="status-select applied-status-select" aria-label="Change status">${STATUS_OPTIONS.map(s => `<option value="${esc(s)}" ${s===statusOf(r)?'selected':''}>${esc(s)}</option>`).join('')}</select>
               <button class="btn end-trigger">进度已结束</button>
               <div class="end-choices hidden">
                 <button class="btn btn-good end-choice" data-status="Offer">已通过</button>
@@ -560,6 +689,8 @@
             markEnded(r, choiceBtn.dataset.status, choiceBtn);
           });
         });
+        card.querySelector('.applied-status-select').addEventListener('click', e => e.stopPropagation());
+        card.querySelector('.applied-status-select').addEventListener('change', e => updateJobStatus(r, e.target.value));
         listEl.appendChild(card);
       });
     }
@@ -577,7 +708,8 @@
     const citySel = document.getElementById('pending-filter-city');
     const search = document.getElementById('pending-search');
 
-    let rows = data.jobPool.filter(r => r.status === 'Pending' || r.status === 'Needs user');
+    let rows = data.jobPool.filter(r => isCurrentNotExpired(r));
+    const programmeSel = document.getElementById('pending-filter-programme');
 
     if (catSel.options.length <= 1) {
       [...new Set(rows.map(category))].sort().forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
@@ -593,6 +725,8 @@
       const cat = category(r);
       const summary = (r.next_action || '').split(/[；;]/)[0];
       const unclearChip = r.cohort_match_status === 'Unclear' ? '<span class="chip chip-warning">状态不明确，需人工复核</span>' : '';
+      const programme = r.programme_type || r['Internship / Graduate'] || '';
+      const status = statusOf(r);
       const html = `
         <div class="card-top">
           <div>
@@ -601,6 +735,8 @@
             <div class="tags">
               <span class="chip ${catChipClass(cat)}">${esc(cat)}</span>
               <span class="chip">优先级 ${esc(r.priority)}</span>
+              ${programme ? `<span class="chip">${esc(programme)}</span>` : ''}
+              <span class="chip chip-good">${esc(status)}</span>
               ${unclearChip}
             </div>
           </div>
@@ -608,10 +744,21 @@
         </div>
         <div class="detail">
           <dt>next_action</dt><dd>${esc(r.next_action)}</dd>
+          <dt>最后验证</dt><dd>${esc(r.current_checked_date || '未记录')}</dd>
           <dt>备注</dt><dd>${esc(r.notes)}</dd>
+          <dt>Last checked</dt><dd>${esc(r.current_checked_date || '未记录')}</dd>
+          <div class="quick-actions"><select class="status-select" aria-label="Change status">${STATUS_OPTIONS.map(s => `<option value="${esc(s)}" ${s===status?'selected':''}>${esc(s)}</option>`).join('')}</select><button class="btn open-job">Open Job</button><button class="btn mark-applied">Mark as Applied</button><button class="btn edit-job">Edit</button><button class="btn recheck-job">Re-check Job</button><button class="btn archive-job">Archive</button></div>
           ${r.job_url ? `<dt>链接</dt><dd><a href="${esc(r.job_url)}" target="_blank" rel="noopener">${esc(r.job_url)}</a></dd>` : ''}
         </div>`;
-      return cardEl(html);
+      const card = cardEl(html);
+      card.querySelector('.status-select').addEventListener('click', e => e.stopPropagation());
+      card.querySelector('.status-select').addEventListener('change', e => updateJobStatus(r, e.target.value));
+      card.querySelector('.open-job').addEventListener('click', e => { e.stopPropagation(); if (r.job_url) window.open(r.job_url, '_blank', 'noopener'); });
+      card.querySelector('.mark-applied').addEventListener('click', e => { e.stopPropagation(); openAppliedModal(r); });
+      card.querySelector('.edit-job').addEventListener('click', e => { e.stopPropagation(); openJobModal(r); });
+      card.querySelector('.recheck-job').addEventListener('click', e => { e.stopPropagation(); recheckJob(r); });
+      card.querySelector('.archive-job').addEventListener('click', e => { e.stopPropagation(); updateJobStatus(r, 'Archived'); });
+      return card;
     }
 
     function draw() {
@@ -619,6 +766,7 @@
       if (catSel.value) filtered = filtered.filter(r => category(r) === catSel.value);
       if (prioSel.value) filtered = filtered.filter(r => r.priority === prioSel.value);
       if (citySel.value) filtered = filtered.filter(r => r.location === citySel.value);
+      if (programmeSel.value === 'Graduate / MT only') filtered = filtered.filter(r => /graduate|trainee|management trainee|rotational/i.test((r.programme_type || r['Internship / Graduate'] || '') + ' ' + (r.job_title || '') + ' ' + (r.tags || '')));
       if (search.value.trim()) {
         const q = search.value.trim().toLowerCase();
         filtered = filtered.filter(r => (r.company||'').toLowerCase().includes(q));
@@ -636,7 +784,7 @@
       openRows.forEach(r => openEl.appendChild(rowCard(r)));
       notOpenRows.forEach(r => notOpenEl.appendChild(rowCard(r)));
     }
-    catSel.onchange = draw; prioSel.onchange = draw; citySel.onchange = draw; search.oninput = draw;
+    catSel.onchange = draw; prioSel.onchange = draw; citySel.onchange = draw; programmeSel.onchange = draw; search.oninput = draw;
     draw();
   }
 
@@ -644,7 +792,8 @@
   function renderEnded() {
     const listEl = document.getElementById('ended-list');
     const search = document.getElementById('ended-search');
-    let rows = data.jobPool.filter(r => r.status === 'Offer' || r.status === 'Rejected');
+    const archivedValidity = new Set(['Expired/Closed','Expired','Closed','Removed','Invalid Link','Unknown','Duplicate']);
+    let rows = data.jobPool.filter(r => ['Offer','Rejected','Closed / Expired','Archived'].includes(statusOf(r)) || archivedValidity.has((r.current_validity || '').trim()));
 
     function draw() {
       let filtered = rows.slice();
@@ -652,15 +801,17 @@
         const q = search.value.trim().toLowerCase();
         filtered = filtered.filter(r => (r.company||'').toLowerCase().includes(q));
       }
-      filtered.sort((a,b) => (a.status === 'Offer' ? -1 : 1) - (b.status === 'Offer' ? -1 : 1));
+      filtered.sort((a,b) => (statusOf(a) === 'Offer' ? -1 : 1) - (statusOf(b) === 'Offer' ? -1 : 1));
 
       listEl.innerHTML = '';
-      if (!filtered.length) { listEl.innerHTML = '<div class="empty">暂无已结束的投递</div>'; return; }
+      if (!filtered.length) { listEl.innerHTML = '<div class="empty">暂无已结束或归档记录</div>'; return; }
       filtered.forEach(r => {
         const cat = category(r);
-        const resultChip = r.status === 'Offer'
+        const resultChip = statusOf(r) === 'Offer'
           ? '<span class="chip chip-good">🟢 Offer</span>'
-          : '<span class="chip chip-critical">已挂</span>';
+          : statusOf(r) === 'Rejected'
+            ? '<span class="chip chip-critical">已挂</span>'
+            : `<span class="chip chip-warning">归档 · ${esc(r.current_validity || '历史')}</span>`;
         const jd = jdFor(r.company);
         const html = `
           <div class="card-top">
@@ -683,6 +834,66 @@
     search.oninput = draw;
     draw();
   }
+
+  // ---------- tracker actions ----------
+  async function postJSON(url, body) {
+    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok || !result.ok) throw new Error(result.error || ('HTTP ' + res.status));
+    return result;
+  }
+  async function updateJobStatus(r, status, extra) {
+    try {
+      await postJSON('/api/job/status', Object.assign({rowIndex:r.__rowIndex, company:r.company, job_title:r.job_title, status}, extra || {}));
+      location.reload();
+    } catch (e) { alert('状态更新失败：' + e.message); }
+  }
+  let jobEditing = null;
+  let appliedEditing = null;
+  function fillStatusOptions(select, selected) {
+    select.innerHTML = STATUS_OPTIONS.map(s => `<option value="${esc(s)}" ${s===selected?'selected':''}>${esc(s)}</option>`).join('');
+  }
+  function openJobModal(r) {
+    jobEditing = r || null;
+    document.getElementById('job-modal-title').textContent = r ? 'Edit Job' : '+ Add Job';
+    document.getElementById('job-url').value = r ? (r.job_url || '') : '';
+    document.getElementById('job-source').value = r ? (r.source || '') : '';
+    document.getElementById('job-company').value = r ? (r.company || '') : '';
+    document.getElementById('job-title').value = r ? (r.job_title || '') : '';
+    document.getElementById('job-location').value = r ? (r.location || '') : 'Hong Kong';
+    document.getElementById('job-id').value = r ? (r['Job ID'] || '') : '';
+    document.getElementById('job-programme').value = r ? (r.programme_type || r['Internship / Graduate'] || 'Entry-level') : 'Graduate Programme';
+    fillStatusOptions(document.getElementById('job-status'), r ? statusOf(r) : 'To Review');
+    document.getElementById('job-priority').value = r ? (r.priority || '') : '';
+    document.getElementById('job-deadline').value = r ? (r['Application Deadline'] || '') : '';
+    document.getElementById('job-tags').value = r ? (r.tags || '') : '';
+    document.getElementById('job-notes').value = r ? (r.notes || '') : '';
+    document.getElementById('job-modal-error').classList.add('hidden');
+    document.getElementById('job-modal-backdrop').classList.remove('hidden');
+  }
+  function closeJobModal() { document.getElementById('job-modal-backdrop').classList.add('hidden'); jobEditing = null; }
+  async function fetchJobMetadata() {
+    const err = document.getElementById('job-modal-error'); err.classList.add('hidden');
+    const url = document.getElementById('job-url').value.trim(); if (!url) { err.textContent='先填写 Job URL'; err.classList.remove('hidden'); return; }
+    try { const result = await postJSON('/api/job/metadata',{url}); document.getElementById('job-url').value=result.url||url; if (result.title) document.getElementById('job-title').value=result.title; if (result.company) document.getElementById('job-company').value=result.company; if (result.source) document.getElementById('job-source').value=result.source; if (!result.title) { err.textContent='页面可访问，但没有提取到明确职位标题，请手动确认后保存'; err.classList.remove('hidden'); } } catch(e) { err.textContent=e.message + '；仍可手动填写后保存'; err.classList.remove('hidden'); }
+  }
+  async function saveJob() {
+    const err = document.getElementById('job-modal-error'); err.classList.add('hidden');
+    const body = {rowIndex: jobEditing ? jobEditing.__rowIndex : undefined, company:document.getElementById('job-company').value.trim(), job_title:document.getElementById('job-title').value.trim(), location:document.getElementById('job-location').value.trim(), job_url:document.getElementById('job-url').value.trim(), source:document.getElementById('job-source').value.trim(), job_id:document.getElementById('job-id').value.trim(), programme_type:document.getElementById('job-programme').value, status:document.getElementById('job-status').value, priority:document.getElementById('job-priority').value.trim(), application_deadline:document.getElementById('job-deadline').value, tags:document.getElementById('job-tags').value.trim(), notes:document.getElementById('job-notes').value.trim()};
+    if (!body.company || !body.job_title || !body.job_url) { err.textContent='Company、Job Title、Job URL 必须填写'; err.classList.remove('hidden'); return; }
+    try { await postJSON('/api/job/save',body); location.reload(); } catch(e) { err.textContent=e.message; err.classList.remove('hidden'); }
+  }
+  function openAppliedModal(r) { appliedEditing=r; document.getElementById('applied-date').value=new Date().toISOString().slice(0,10); document.getElementById('applied-cv').value=r.cv_version||''; document.getElementById('applied-cover').value=r.cover_letter_version||''; document.getElementById('applied-notes').value=r.notes||''; document.getElementById('applied-modal-error').classList.add('hidden'); document.getElementById('applied-modal-backdrop').classList.remove('hidden'); }
+  async function saveApplied() { const err=document.getElementById('applied-modal-error'); try { await updateJobStatus(appliedEditing,'Applied',{application_date:document.getElementById('applied-date').value,cv_version:document.getElementById('applied-cv').value.trim(),cover_letter_version:document.getElementById('applied-cover').value.trim(),notes:document.getElementById('applied-notes').value.trim()}); } catch(e) { err.textContent=e.message; err.classList.remove('hidden'); } }
+  async function recheckJob(r) { if (!confirm('将此岗位标记为待复核，并暂时移出 active basket？')) return; try { await postJSON('/api/job/recheck',{rowIndex:r.__rowIndex,company:r.company,job_title:r.job_title}); location.reload(); } catch(e) { alert('复核请求失败：' + e.message); } }
+
+  document.getElementById('add-job-btn').addEventListener('click', () => openJobModal(null));
+  document.getElementById('job-cancel-btn').addEventListener('click', closeJobModal);
+  document.getElementById('job-fetch-btn').addEventListener('click', fetchJobMetadata);
+  document.getElementById('job-save-btn').addEventListener('click', saveJob);
+  document.getElementById('applied-cancel-btn').addEventListener('click', () => document.getElementById('applied-modal-backdrop').classList.add('hidden'));
+  document.getElementById('applied-save-btn').addEventListener('click', saveApplied);
+  document.getElementById('refresh-jobs-btn').addEventListener('click', () => { alert('已刷新本地 Job Database。新的岗位搜索和真实链接验证由 CareerPilot 的验证流程执行；未经验证的岗位不会进入 active basket。'); location.reload(); });
 
   // ---------- calendar ----------
   let calSelectedJob = null;   // job_pool row the form currently has selected
@@ -708,6 +919,13 @@
       const iso = ymd(d);
       const dayEvents = data.followUp
         .filter(f => f.date === iso)
+        .filter(f => {
+          const pool = data.jobPool.find(r =>
+            (f['Job ID'] && r['Job ID'] && f['Job ID'] === r['Job ID']) ||
+            (norm(f.Company) === norm(r.company) && norm(f.job_title) === norm(r.job_title))
+          );
+          return !pool || isCurrentNotExpired(pool);
+        })
         .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
       const dayEl = document.createElement('div');
@@ -768,7 +986,7 @@
       document.getElementById('cal-date').value = existingEvent.date;
       document.getElementById('cal-time').value = existingEvent.time;
       document.getElementById('cal-event-type').value = existingEvent.event_type;
-      const jobRow = data.jobPool.find(r => r.company === existingEvent.company && r.job_title === existingEvent.job_title && r.status === 'Submitted');
+      const jobRow = data.jobPool.find(r => r.company === existingEvent.company && r.job_title === existingEvent.job_title && isAppliedStatus(r));
       if (jobRow) {
         selectCalendarJob(jobRow);
       } else {
@@ -783,7 +1001,7 @@
     const resultsEl = document.getElementById('cal-company-results');
     const query = q.trim().toLowerCase();
     if (!query) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
-    const pool = data.jobPool.filter(r => r.status === 'Submitted');
+    const pool = data.jobPool.filter(isAppliedStatus);
     const matches = pool.filter(r =>
       (r.company || '').toLowerCase().includes(query) || (r.job_title || '').toLowerCase().includes(query)
     ).slice(0, 8);

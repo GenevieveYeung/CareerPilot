@@ -1,0 +1,6 @@
+{
+  "initialized": true,
+  "materials_root": "D:/CareerMaterials",
+  "language": "zh-CN",
+  "notes": "Copy this file to %LOCALAPPDATA%/CareerPilot/config/settings.json and change materials_root if needed."
+}

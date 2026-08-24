@@ -1,0 +1,6 @@
+{
+  "user_data_root": "%LOCALAPPDATA%/CareerPilot",
+  "materials_root": "%LOCALAPPDATA%/CareerPilot/materials",
+  "port": 8420,
+  "language": "zh-CN"
+}

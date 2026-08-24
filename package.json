@@ -1,0 +1,14 @@
+{
+  "name": "careerpilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first job application workspace",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "setup": "node scripts/setup/first_run_setup.mjs",
+    "start": "node dashboard/server.js",
+    "test:regression": "node dashboard/full_regression_careerpilot_20260824.mjs"
+  }
+}
